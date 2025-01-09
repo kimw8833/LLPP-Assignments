@@ -22,6 +22,7 @@
 #include "Simulation.h"
 #include "TimingSimulation.h"
 #include "QTSimulation.h"
+#include "ExportSimulation.h"
 #include <iostream>
 #include <chrono>
 #include <ctime>
@@ -35,15 +36,16 @@
 
 
 void print_usage(char *command) {
-    printf("Usage: %s [--timing-mode|--dump-trace] [--max-steps=100] [--help] [--cuda|--simd|[--omp|--pthread|--seq] [filename]\n", command);
+    printf("Usage: %s [--timing-mode|--export-trace] [--max-steps=100] [--help] [--cuda|--simd|[--omp|--pthread|--seq] [filename]\n", command);
 }
 
 int main(int argc, char*argv[]) {
     bool timing_mode = false;
-    bool dump_trace = false;
+    bool export_trace = false;
     std::string scenefile = std::string("scenario.xml");
     int max_steps = 10000;
     Ped::IMPLEMENTATION implementation_to_test = Ped::SEQ;
+    std::string export_trace_file = "";
 
     // Parsing the command line arguments. Feel free to add your own
     // configurations.
@@ -52,7 +54,7 @@ int main(int argc, char*argv[]) {
     while (1) {
         static struct option long_options[] = {
             {"timing-mode", no_argument, NULL, 't'},
-            {"dump-trace", no_argument, NULL, 'd'},
+            {"export-trace", optional_argument, NULL, 'e'},
             {"max-steps", required_argument, NULL, 'm'},
             {"help", no_argument, NULL, 'h'},
             {"cuda", no_argument, NULL, 'c'},
@@ -76,10 +78,17 @@ int main(int argc, char*argv[]) {
                 std::cout << "Option --timing-mode activated\n";
                 timing_mode = true;
                 break;
-            case 'd':
-                // Handle --dump-trace
-                std::cout << "Option --dump_trace mode activated\n";
-                dump_trace = true;
+            case 'e':
+                // Handle --export-trace
+                export_trace = true;
+                if (optarg != NULL) {
+                    // If an argument is provided, set it as the export filename
+                    export_trace_file = optarg;
+                } else {
+                    // If no argument is provided, use a default filename
+                    export_trace_file = "export_trace.bin";
+                }
+                std::cout << "Option --export-trace set to: " << export_trace_file << std::endl;
                 break;
             case 'h':
                 // Handle --help
@@ -169,6 +178,21 @@ int main(int argc, char*argv[]) {
                 delete simulation;
             }
             std::cout << "\n\nSpeedup: " << fps_target / fps_seq << std::endl;
+        } else if (export_trace) {
+                Ped::Model model;
+                ParseScenario parser(scenefile);
+                model.setup(parser.getAgents(), parser.getWaypoints(), implementation_to_test);
+
+                Simulation *simulation = new ExportSimulation(model, max_steps, export_trace_file);
+
+                std::cout << "Running Export Tracer...\n";
+                auto start = std::chrono::steady_clock::now();
+                simulation->runSimulation();
+                auto duration_target = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now() - start);
+                float fps = ((float)simulation->getTickCount()) / ((float)duration_target.count())*1000.0;
+                cout << "Time: " << duration_target.count() << " milliseconds, " << fps << " Frames Per Second." << std::endl;
+
+                delete simulation;
         } else {
             // Graphics version
             Ped::Model model;
