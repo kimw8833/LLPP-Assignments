@@ -145,7 +145,7 @@ double Ped::Tvector::angleTo(const Tvector &other) const {
 
 	// compute angle
 	double diffAngle = angleOther - angleThis;
-	// → normalize angle
+	// normalize angle
 	if (diffAngle > M_PI)
 		diffAngle -= 2 * M_PI;
 	else if (diffAngle <= -M_PI)
