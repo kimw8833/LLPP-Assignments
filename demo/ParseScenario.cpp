@@ -3,7 +3,7 @@
 // Copyright (c) 2003 - 2014 by Christian Gloor
 //
 // Adapted for Low Level Parallel Programming 2017.
-//
+// Modified in 2025 to remove QT's XML parser and used TinyXML2 instead.
 
 
 #include "ParseScenario.h"
@@ -18,22 +18,72 @@ bool positionComparator(Ped::Tagent *a, Ped::Tagent *b) {
 	return (a->getX() < b->getX()) || ((a->getX() == b->getX()) && (a->getY() < b->getY()));
 }
 
-/// object constructor
-/// \date    2011-01-03
-ParseScenario::ParseScenario(QString filename) : QObject(0)
+// Reads in the configuration file, given the filename
+ParseScenario::ParseScenario(std::string filename)
 {
-	QFile file(filename);
-	if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-	{
-		std::cout << "Warning: file not found or invalid: " << filename.toStdString() << "." << std::endl;
+	XMLError ret = doc.LoadFile(filename.c_str());
+	if (ret != XML_SUCCESS) {
+		//std::cout << "Error reading the scenario configuration file: " << ret << std::endl;
+		fprintf(stderr, "Error reading the scenario configuration file for filename %s: ", filename.c_str());
+		perror(NULL);
+		exit(1);
 		return;
 	}
 
-	while (!file.atEnd())
-	{
-		QByteArray line = file.readLine();
-		processXmlLine(line);
+	// Get the root element (welcome)
+	XMLElement* root = doc.FirstChildElement("welcome");
+	if (!root) {
+		std::cerr << "Error: Missing <welcome> element in the XML file!" << std::endl;
+		exit(1);
+		return;
 	}
+
+	// Parse waypoints
+	std::cout << "Waypoints:" << std::endl;
+	for (XMLElement* waypoint = root->FirstChildElement("waypoint"); waypoint; waypoint = waypoint->NextSiblingElement("waypoint")) {
+		std::string id = waypoint->Attribute("id");
+		double x = waypoint->DoubleAttribute("x");
+		double y = waypoint->DoubleAttribute("y");
+		double r = waypoint->DoubleAttribute("r");
+
+		std::cout << "  ID: " << id << ", x: " << x << ", y: " << y << ", r: " << r << std::endl;
+
+		Ped::Twaypoint *w = new Ped::Twaypoint(x, y, r);
+		waypoints[id] = w;
+	}
+
+	// Parse agents
+	std::cout << "\nAgents:" << std::endl;
+	for (XMLElement* agent = root->FirstChildElement("agent"); agent; agent = agent->NextSiblingElement("agent")) {
+		double x = agent->DoubleAttribute("x");
+		double y = agent->DoubleAttribute("y");
+		int n = agent->IntAttribute("n");
+		double dx = agent->DoubleAttribute("dx");
+		double dy = agent->DoubleAttribute("dy");
+
+		std::cout << "  Agent: x: " << x << ", y: " << y << ", n: " << n
+			<< ", dx: " << dx << ", dy: " << dy << std::endl;
+
+		tempAgents.clear();
+		for (int i = 0; i < n; ++i)
+		{
+			int xPos = x + rand() / (RAND_MAX / dx) - dx / 2;
+			int yPos = y + rand() / (RAND_MAX / dy) - dy / 2;
+			Ped::Tagent *a = new Ped::Tagent(xPos, yPos);
+			tempAgents.push_back(a);
+		}
+
+		// Parse addwaypoints within each agent
+		for (XMLElement* addwaypoint = agent->FirstChildElement("addwaypoint"); addwaypoint; addwaypoint = addwaypoint->NextSiblingElement("addwaypoint")) {
+			std::string id = addwaypoint->Attribute("id");
+			std::cout << "    AddWaypoint ID: " << id << std::endl;
+			for (auto a: tempAgents) {
+				a->addWaypoint(waypoints[id]);
+			}
+		}
+		agents.insert(agents.end(), tempAgents.begin(), tempAgents.end());
+	}
+	tempAgents.clear();
 
 	// Hack! Do not allow agents to be on the same position. Remove duplicates from scenario and free the memory.
 	bool(*fn_pt)(Ped::Tagent*, Ped::Tagent*) = positionComparator;
@@ -63,7 +113,6 @@ vector<Ped::Tagent*> ParseScenario::getAgents() const
 	return agents;
 }
 
-
 std::vector<Ped::Twaypoint*> ParseScenario::getWaypoints()
 {
 	std::vector<Ped::Twaypoint*> v; //
@@ -73,119 +122,3 @@ std::vector<Ped::Twaypoint*> ParseScenario::getWaypoints()
 	}
 	return std::move(v);
 }
-
-/// Called for each line in the file
-void ParseScenario::processXmlLine(QByteArray dataLine)
-{
-	xmlReader.addData(dataLine);
-
-	while (!xmlReader.atEnd())
-	{
-		xmlReader.readNext();
-		// new definition
-		if (xmlReader.isStartElement())
-		{
-			handleXmlStartElement();
-		}
-		// closing of definition
-		else if (xmlReader.isEndElement())
-		{
-			handleXmlEndElement();
-		}
-	}
-}
-
-void ParseScenario::handleXmlStartElement()
-{
-	// New waypoint definition
-	if (xmlReader.name() == "waypoint")
-	{
-		createWaypoint();
-	}
-
-	// New agents to add to scenario
-	else if (xmlReader.name() == "agent")
-	{
-		createAgents();
-	}
-
-	// Add waypoint that was defined earlier by "createWaypoint"
-	// to all agents
-	else if (xmlReader.name() == "addwaypoint")
-	{
-		// Get waypoint by id
-		QString id = readString("id");
-		addWaypointToCurrentAgents(id);
-	}
-	else
-	{
-		// nop, unknown, ignore
-	}
-}
-
-void ParseScenario::handleXmlEndElement()
-{
-	// If agents were created in this xml tag,
-	// then add the temporary agents to the final
-	// collection of agents
-	if (xmlReader.name() == "agent") {
-		Ped::Tagent *a;
-		foreach(a, tempAgents)
-		{
-			agents.push_back(a);
-		}
-	}
-}
-
-void ParseScenario::createWaypoint()
-{
-	QString id = readString("id");
-	double x = readDouble("x");
-	double y = readDouble("y");
-	double r = readDouble("r");
-
-	Ped::Twaypoint *w = new Ped::Twaypoint(x, y, r);
-	waypoints[id] = w;
-}
-
-void ParseScenario::createAgents()
-{
-	double x = readDouble("x");
-	double y = readDouble("y");
-	int n = readDouble("n");
-	double dx = readDouble("dx");
-	double dy = readDouble("dy");
-
-	tempAgents.clear();
-	for (int i = 0; i < n; ++i)
-	{
-		int xPos = x + qrand() / (RAND_MAX / dx) - dx / 2;
-		int yPos = y + qrand() / (RAND_MAX / dy) - dy / 2;
-		Ped::Tagent *a = new Ped::Tagent(xPos, yPos);
-		tempAgents.push_back(a);
-	}
-}
-
-void ParseScenario::addWaypointToCurrentAgents(QString &id)
-{
-	Ped::Tagent *a;
-
-	// add the waypoint defined by 'id' to
-	// agents created in current xml tag
-	foreach(a, tempAgents)
-	{
-		a->addWaypoint(waypoints[id]);
-	}
-}
-
-double ParseScenario::readDouble(const QString &tag)
-{
-	return readString(tag).toDouble();
-}
-
-QString ParseScenario::readString(const QString &tag)
-{
-	return xmlReader.attributes().value(tag).toString();
-}
-
-#include "ParseScenario.moc"

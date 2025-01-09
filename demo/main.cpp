@@ -32,7 +32,7 @@
 int main(int argc, char*argv[]) {
 	bool timing_mode = 0;
 	int i = 1;
-	QString scenefile = "scenario.xml";
+	std::string scenefile = std::string("scenario.xml");
 
 	// Argument handling
 	while (i < argc)
@@ -56,7 +56,7 @@ int main(int argc, char*argv[]) {
 		}
 		else // Assume it is a path to scenefile
 		{
-			scenefile = argv[i];
+			scenefile = std::string(argv[i]);
 		}
 
 		i += 1;

@@ -21,6 +21,15 @@ If you cannot install Qt5, but you do have Qt4 then you will need to modify
 the include and library arguments in `demo/Makefile`. Change the `qt5` strings
 under `QTINCLUDES` and `LIBS` to your Qt version.
 
+### Prerequisite: TinyXML-2
+
+The configuration files of this project are specified in XML. We rely on the TinyXML2 library to read in the configuration files.
+If you are on Ubuntu, the following command should install the library for you.
+
+```
+# apt install libtinyxml2-dev
+```
+
 ### Prerequisite: CUDA
 
 The 2nd (optional) and 4th part of the assignment requires running the code using CUDA. 
