@@ -35,7 +35,7 @@ namespace Ped{
 		void tick();
 
 		// Returns the agents of this scenario
-		const std::vector<Tagent*> getAgents() const { return agents; };
+		const std::vector<Tagent*>& getAgents() const { return agents; };
 
 		// Adds an agent to the tree structure
 		void placeAgent(const Ped::Tagent *a);
