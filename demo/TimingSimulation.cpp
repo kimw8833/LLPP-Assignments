@@ -2,7 +2,7 @@
 
 using namespace std;
 
-TimingSimulation::TimingSimulation(Ped::Model &model_, int maxSteps) : Simulation(model, maxSteps) 
+TimingSimulation::TimingSimulation(Ped::Model &model_, int maxSteps) : Simulation(model_, maxSteps) 
 {
 }
 
