@@ -192,6 +192,7 @@ int main(int argc, char*argv[]) {
             float fps = ((float)simulation->getTickCount()) / ((float)duration.count())*1000.0;
             cout << "Time: " << duration.count() << " milliseconds, " << fps << " Frames Per Second." << std::endl;
 
+            delete simulation;
         }
     }
 
