@@ -24,8 +24,8 @@ using namespace tinyxml2;
 class ParseScenario
 {
 public:
-	ParseScenario() {};
-	ParseScenario(std::string filename);
+	ParseScenario() {}
+	ParseScenario(std::string filename, bool verbose = false);
 	~ParseScenario() {}
 
 	// returns the collection of agents defined by this scenario

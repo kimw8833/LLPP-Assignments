@@ -19,7 +19,7 @@ bool positionComparator(Ped::Tagent *a, Ped::Tagent *b) {
 }
 
 // Reads in the configuration file, given the filename
-ParseScenario::ParseScenario(std::string filename)
+ParseScenario::ParseScenario(std::string filename, bool verbose)
 {
 	XMLError ret = doc.LoadFile(filename.c_str());
 	if (ret != XML_SUCCESS) {
@@ -39,21 +39,21 @@ ParseScenario::ParseScenario(std::string filename)
 	}
 
 	// Parse waypoints
-	std::cout << "Waypoints:" << std::endl;
+	if (verbose) std::cout << "Waypoints:" << std::endl;
 	for (XMLElement* waypoint = root->FirstChildElement("waypoint"); waypoint; waypoint = waypoint->NextSiblingElement("waypoint")) {
 		std::string id = waypoint->Attribute("id");
 		double x = waypoint->DoubleAttribute("x");
 		double y = waypoint->DoubleAttribute("y");
 		double r = waypoint->DoubleAttribute("r");
 
-		std::cout << "  ID: " << id << ", x: " << x << ", y: " << y << ", r: " << r << std::endl;
+		if (verbose) std::cout << "  ID: " << id << ", x: " << x << ", y: " << y << ", r: " << r << std::endl;
 
 		Ped::Twaypoint *w = new Ped::Twaypoint(x, y, r);
 		waypoints[id] = w;
 	}
 
 	// Parse agents
-	std::cout << "\nAgents:" << std::endl;
+	if (verbose) std::cout << "\nAgents:" << std::endl;
 	for (XMLElement* agent = root->FirstChildElement("agent"); agent; agent = agent->NextSiblingElement("agent")) {
 		double x = agent->DoubleAttribute("x");
 		double y = agent->DoubleAttribute("y");
@@ -61,8 +61,10 @@ ParseScenario::ParseScenario(std::string filename)
 		double dx = agent->DoubleAttribute("dx");
 		double dy = agent->DoubleAttribute("dy");
 
-		std::cout << "  Agent: x: " << x << ", y: " << y << ", n: " << n
+		if (verbose) {
+            std::cout << "  Agent: x: " << x << ", y: " << y << ", n: " << n
 			<< ", dx: " << dx << ", dy: " << dy << std::endl;
+        }
 
 		tempAgents.clear();
 		for (int i = 0; i < n; ++i)
@@ -76,7 +78,7 @@ ParseScenario::ParseScenario(std::string filename)
 		// Parse addwaypoints within each agent
 		for (XMLElement* addwaypoint = agent->FirstChildElement("addwaypoint"); addwaypoint; addwaypoint = addwaypoint->NextSiblingElement("addwaypoint")) {
 			std::string id = addwaypoint->Attribute("id");
-			std::cout << "    AddWaypoint ID: " << id << std::endl;
+			if (verbose) std::cout << "    AddWaypoint ID: " << id << std::endl;
 			for (auto a: tempAgents) {
 				a->addWaypoint(waypoints[id]);
 			}

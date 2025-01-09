@@ -16,7 +16,7 @@ CXXFLAGS=-fPIC $(INCPATH) $(QTINCLUDES) $(LIBPATH) -fopenmp
 LIBS = -lQt5Widgets -lQt5Gui -lQt5Core -lpedsim -lcudart -ltinyxml2
 LDFLAGS+="-Wl,-rpath,$(PWD)/libpedsim,-rpath,$(PWD)/../libpedsim"
 
-MOCFILES=PedSimulation.moc
+MOCFILES=QTSimulation.moc
 
 
 all: $(TARGET)
