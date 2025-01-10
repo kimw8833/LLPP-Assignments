@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider, Button
+from matplotlib.widgets import Slider, Button, CheckButtons
 import matplotlib.colors as mcolors
 import time
 matplotlib.use('TkAgg')
@@ -13,6 +13,12 @@ matplotlib.use('TkAgg')
 colors = [(1, 0, 0, 0),    # Red with alpha=0
           (1, 0, 0, 1)]    # Red with alpha=1
 cmap = mcolors.LinearSegmentedColormap.from_list('custom_red', colors)
+
+isPlaying = False
+current_step = 0
+checkbox = None
+im = None
+enableHeatmap = True
 
 
 def skimFrame(file):
@@ -28,6 +34,7 @@ def skimFrame(file):
 
 
 def readFrame(file):
+    global enableHeatmap
     num_agents = struct.unpack('Q', file.read(8))[0]  # Read number of agents
 
 
@@ -46,7 +53,10 @@ def readFrame(file):
     heatmap_width = 160 * 5
     heatmap_total_elem = heatmap_height * heatmap_width
 
-    frame_intensities = []
+    frame_heatmap = []
+    if not enableHeatmap:
+        file.seek(8+heatmap_total_elem, 1)
+        return frame_agents, frame_heatmap
 
     file.read(8) # jump over the heatmap_start magic code
 
@@ -55,14 +65,6 @@ def readFrame(file):
     raw_data = file.read(heatmap_total_elem)
     frame_heatmap = np.frombuffer(raw_data,
                                       dtype=np.uint8).reshape(600,800)
-
-    #for _ in range(heatmap_total_elem):
-    #    redValue = struct.unpack('B', file.read(1))[0]  # Read 32-bit integer intensity
-    #    frame_intensities.append(redValue)
-
-    #print(frame_agents[:5])
-    #print(len(frame_agents))
-    #print(len(frame_heatmap))
 
     return frame_agents, frame_heatmap
 
@@ -110,6 +112,7 @@ def splitUniqueCommonAgents(agents):
 
 
 def plot(file, offsets, num_steps):
+    global checkbox, im
     # Initialize the plot
     fig, ax = plt.subplots(figsize=(6, 4))  # Adjust figure size (aspect ratio ~160:120)
     plt.subplots_adjust(bottom=0.3)  # Adjust space for the widgets
@@ -140,14 +143,13 @@ def plot(file, offsets, num_steps):
                    aspect='auto',
                    cmap=cmap,
                    #interpolation='nearest'
-                   alpha=0.7,
+                   alpha=0.8,
                    zorder=3)
 
 
     # Initial plot setup
-    current_step = 0
     def update_plot(step):
-        global current_step
+        global current_step, enableHeatmap
         current_step = step
         agents, heatmap = ReadSingleFrame(file, offsets, step)
 
@@ -158,7 +160,8 @@ def plot(file, offsets, num_steps):
             redAgents = np.empty((0,2))
         sc_green.set_offsets(greenAgents)
         sc_red.set_offsets(redAgents)
-        im.set_array(heatmap)
+        if enableHeatmap:
+            im.set_data(heatmap)
 
         step_label.set_text(f'Step: {step + 1}/{num_steps}')
         fig.canvas.draw_idle()
@@ -176,23 +179,36 @@ def plot(file, offsets, num_steps):
 
     # Buttons
     ax_next = plt.axes([0.85, 0.025, 0.1, 0.04])
-    ax_prev = plt.axes([0.7, 0.025, 0.1, 0.04])
-    ax_play = plt.axes([0.5, 0.025, 0.1, 0.04])
+    ax_prev = plt.axes([0.70, 0.025, 0.1, 0.04])
+    ax_play = plt.axes([0.5, 0.025, 0.12, 0.04])
 
     btn_next = Button(ax_next, 'Next')
     btn_prev = Button(ax_prev, 'Previous')
-    btn_play = Button(ax_play, 'Play')
+    btn_play = Button(ax_play, 'Play/Stop')
 
     def next_step(event):
+        global current_step
         step = (current_step + 1) % num_steps
-        slider.set_val(step + 1)
+        slider.set_val(step+1)
 
     def prev_step(event):
+        global current_step
         step = (current_step - 1) % num_steps
-        slider.set_val(step + 1)
+        slider.set_val(step+1)
 
     def play(event):
+        global current_step, isPlaying 
+
+        if isPlaying:
+            isPlaying = False
+            return
+
+        isPlaying = True
+        if current_step == num_steps -1:
+            current_step = 0
         for step in range(current_step, num_steps):
+            if not isPlaying:
+               return 
             slider.set_val(step + 1)
             time.sleep(0.1)  # Adjust delay for playback
             plt.pause(0.01)
@@ -200,6 +216,22 @@ def plot(file, offsets, num_steps):
     btn_next.on_clicked(next_step)
     btn_prev.on_clicked(prev_step)
     btn_play.on_clicked(play)
+
+    # Checkbox for toggling heatmap
+    ax_checkbox = plt.axes([0.025, 0.025, 0.25, 0.04])  # Position the checkbox on the left
+    checkbox = CheckButtons(ax_checkbox, ['Draw heatmaps'], [True])  # Initially checked
+
+    def toggle_heatmap(label):
+        global checkbox, enableHeatmap, current_step, im
+        if checkbox.get_status()[0]:
+            enableHeatmap = True
+            im.set_alpha(0.8)
+        else:
+            enableHeatmap = False
+            im.set_alpha(0.0)
+        update_plot(current_step)
+
+    checkbox.on_clicked(toggle_heatmap)
 
     plt.show()
 
