@@ -36,14 +36,19 @@
 
 
 void print_usage(char *command) {
-    printf("Usage: %s [--timing-mode|--export-trace] [--max-steps=100] [--help] [--cuda|--simd|[--omp|--pthread|--seq] [filename]\n", command);
+    printf("Usage: %s [--timing-mode|--export-trace[=export_trace.bin]] [--max-steps=100] [--help] [--cuda|--simd|--omp|--pthread|--seq] [scenario filename]\n", command);
+    printf("There are three modes of execution:\n");
+    printf("\t the QT window mode (default if no argument is provided. But this is also deprecated. Please opt to use the --export-trace mode instead)\n");
+    printf("\t the --export-trace mode: where the agent movement are stored in a trace file and can be visualized by a separate python tool.\n");
+    printf("\t the --timing-mode: the mode where no visualization is done and can be used to measure the performance of your implementation/optimization\n");
+    printf("\nIf you need visualization, please try using the --export-trace mode. You can even copy the trace file to your computer and locally run the python visualizer. (You'll need to fork the assignment repository on your local machine too.)\n");
 }
 
 int main(int argc, char*argv[]) {
     bool timing_mode = false;
     bool export_trace = false;
     std::string scenefile = std::string("scenario.xml");
-    int max_steps = 10000;
+    int max_steps = 1000;
     Ped::IMPLEMENTATION implementation_to_test = Ped::SEQ;
     std::string export_trace_file = "";
 
