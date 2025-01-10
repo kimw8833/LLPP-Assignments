@@ -43,8 +43,8 @@ void ExportSimulation::serialize()
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
             int ARGBvalue = heatmap[i][j];
-            int8_t Rvalue = (ARGBvalue >> 16) & ((1 << 8)-1);
-            file.write(reinterpret_cast<const char*>(&Rvalue), sizeof(Rvalue));
+            int8_t Avalue = (ARGBvalue >> 24) & ((1 << 8)-1);
+            file.write(reinterpret_cast<const char*>(&Avalue), sizeof(Avalue));
         }
     }
     file.flush();

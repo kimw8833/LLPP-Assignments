@@ -6,8 +6,25 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
+import matplotlib.colors as mcolors
 import time
 matplotlib.use('TkAgg')
+
+colors = [(1, 0, 0, 0),    # Red with alpha=0
+          (1, 0, 0, 1)]    # Red with alpha=1
+cmap = mcolors.LinearSegmentedColormap.from_list('custom_red', colors)
+
+
+def skimFrame(file):
+    num_agents = struct.unpack('Q', file.read(8))[0]  # Read number of agents
+    file.seek(num_agents * 4, 1) # Jump over the coordinates of the agents
+    file.seek(8, 1)  # jump over the heatmap_start magic
+
+    heatmap_height = 120 * 5
+    heatmap_width = 160 * 5
+    heatmap_total_elem = heatmap_height * heatmap_width
+
+    file.seek(heatmap_total_elem, 1)
 
 
 def readFrame(file):
@@ -37,7 +54,7 @@ def readFrame(file):
     # 7s vs 42s
     raw_data = file.read(heatmap_total_elem)
     frame_heatmap = np.frombuffer(raw_data,
-                                      dtype=np.uint8).tolist()
+                                      dtype=np.uint8).reshape(600,800)
 
     #for _ in range(heatmap_total_elem):
     #    redValue = struct.unpack('B', file.read(1))[0]  # Read 32-bit integer intensity
@@ -66,8 +83,10 @@ def deserialize(file, max_frame, lightScan):
 
     for frame in range(total_frames):
         frames_file_offset.append(file.tell())
-        agents, heatmap = readFrame(file)
-        if not lightScan:
+        if lightScan:
+            skimFrame(file)
+        else:
+            agents, heatmap = readFrame(file)
             frames.append(agents)
             frames_heatmap.append(heatmap)
 
@@ -110,9 +129,20 @@ def plot(file, offsets, num_steps):
     ax.grid(which='major', color='gray', linestyle='--', linewidth=0.5)  # Fine grid
 
     # Scatter plot for points
-    sc_green = ax.scatter([], [], s=10, color='green', edgecolor='black')
-    sc_red = ax.scatter([], [], s=10, color='red', edgecolor='black')
-    step_label = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, va='top')
+    sc_green = ax.scatter([], [], s=10, color='green', edgecolor='black',
+                          zorder=1)
+    sc_red = ax.scatter([], [], s=10, color='red', edgecolor='black', zorder=2)
+    step_label = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12,
+                         va='top', zorder=4)
+
+    # Heatmap
+    im = ax.imshow(np.random.randint(0, 256, size=(600, 800), dtype=np.uint8), extent=[0, 160, 120, 0],
+                   aspect='auto',
+                   cmap=cmap,
+                   #interpolation='nearest'
+                   alpha=0.7,
+                   zorder=3)
+
 
     # Initial plot setup
     current_step = 0
@@ -128,6 +158,7 @@ def plot(file, offsets, num_steps):
             redAgents = np.empty((0,2))
         sc_green.set_offsets(greenAgents)
         sc_red.set_offsets(redAgents)
+        im.set_array(heatmap)
 
         step_label.set_text(f'Step: {step + 1}/{num_steps}')
         fig.canvas.draw_idle()
@@ -188,11 +219,10 @@ def main():
         start_time = time.time()
         frames, heatmaps, frames_offsets = deserialize(file, max_frame, True)
         end_time = time.time()
-        print("Both frames and heatmaps are of the sizes: %d and %d" % (
-            len(frames), len(heatmaps)))
+        print(f"Found {len(frames_offsets)} frame.")
         print(f"Total execution time: {end_time - start_time:.6f} seconds")
 
-        plot(file, frames_offsets, max_frame)
+        plot(file, frames_offsets, len(frames_offsets))
 
 if __name__ == '__main__':
     main()
