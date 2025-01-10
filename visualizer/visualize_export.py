@@ -73,73 +73,104 @@ def deserialize(file, max_frame, lightScan):
 
     return frames, frames_heatmap, frames_file_offset
 
+def splitUniqueCommonAgents(agents):
+    seen = set()
+    duplicates = set()
+
+    for item in agents:
+        # If item is already in seen, it's a duplicate
+        if item in seen:
+            duplicates.add(item)
+        else:
+            seen.add(item)
+
+    # Truly unique elements = all seen elements minus duplicates
+    unique_elements = seen - duplicates
+
+    return list(unique_elements), list(duplicates)
+
+
 def plot(file, offsets, num_steps):
-	# Initialize the plot
-	fig, ax = plt.subplots(figsize=(6, 4))  # Adjust figure size (aspect ratio ~160:120)
-	plt.subplots_adjust(bottom=0.3)  # Adjust space for the widgets
+    # Initialize the plot
+    fig, ax = plt.subplots(figsize=(6, 4))  # Adjust figure size (aspect ratio ~160:120)
+    plt.subplots_adjust(bottom=0.3)  # Adjust space for the widgets
 
-	# Set up the 160x120 coordinate system
-	ax.set_xlim(0, 160)
-	ax.set_ylim(0, 120)
-	ax.invert_yaxis()  # (0, 0) is now at the top-left corner
-	ax.set_aspect('equal', adjustable='box')  # Ensure the aspect ratio stays correct
+    # Set up the 160x120 coordinate system
+    ax.set_xlim(0, 160)
+    ax.set_ylim(0, 120)
+    ax.invert_yaxis()  # (0, 0) is now at the top-left corner
+    ax.set_aspect('equal', adjustable='box')  # Ensure the aspect ratio stays correct
 
-	# Scatter plot for points
-	sc = ax.scatter([], [])
-	step_label = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, va='top')
+    # Add a fine grid at every 1 unit
+    ax.set_xticks(range(0, 161, 5), minor=True)   # Grid at 5-unit intervals (x-axis)
+    ax.set_yticks(range(0, 121, 5), minor=True)   # Grid at 5-unit intervals (y-axis)
+    ax.set_xticks(range(0, 161, 20), minor=False)  # Major ticks every 20 units (x-axis)
+    ax.set_yticks(range(0, 121, 20), minor=False)  # Major ticks every 20 units (y-axis)
+    ax.grid(which='minor', color='gray', linestyle='--', linewidth=0.5)  # Fine grid
+    ax.grid(which='major', color='gray', linestyle='--', linewidth=0.5)  # Fine grid
 
-	# Initial plot setup
-	current_step = 0
-	def update_plot(step):
-		global current_step
-		current_step = step
-		agents, heatmap = ReadSingleFrame(file, offsets, step)
-		sc.set_offsets(agents)
+    # Scatter plot for points
+    sc_green = ax.scatter([], [], s=10, color='green', edgecolor='black')
+    sc_red = ax.scatter([], [], s=10, color='red', edgecolor='black')
+    step_label = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, va='top')
 
-		#x, y = data[step][:, 0], data[step][:, 1]
-		#sc.set_offsets(np.c_[x, y])
-		step_label.set_text(f'Step: {step + 1}/{num_steps}')
-		fig.canvas.draw_idle()
+    # Initial plot setup
+    current_step = 0
+    def update_plot(step):
+        global current_step
+        current_step = step
+        agents, heatmap = ReadSingleFrame(file, offsets, step)
 
-	update_plot(0)
+        greenAgents, redAgents = splitUniqueCommonAgents(agents)
+        if len(greenAgents) == 0:
+            greenAgents = np.empty((0,2))
+        if len(redAgents) == 0:
+            redAgents = np.empty((0,2))
+        sc_green.set_offsets(greenAgents)
+        sc_red.set_offsets(redAgents)
 
-	ax_slider = plt.axes([0.2, 0.1, 0.65, 0.03])
-	slider = Slider(ax_slider, 'Step', 1, num_steps, valinit=1, valstep=1)
+        step_label.set_text(f'Step: {step + 1}/{num_steps}')
+        fig.canvas.draw_idle()
 
-	def slider_update(val):
-		step = int(slider.val) - 1
-		update_plot(step)
+    update_plot(0)
 
-	slider.on_changed(slider_update)
+    ax_slider = plt.axes([0.2, 0.1, 0.65, 0.03])
+    slider = Slider(ax_slider, 'Step', 1, num_steps, valinit=1, valstep=1)
 
-	# Buttons
-	ax_next = plt.axes([0.85, 0.025, 0.1, 0.04])
-	ax_prev = plt.axes([0.7, 0.025, 0.1, 0.04])
-	ax_play = plt.axes([0.5, 0.025, 0.1, 0.04])
+    def slider_update(val):
+        step = int(slider.val) - 1
+        update_plot(step)
 
-	btn_next = Button(ax_next, 'Next')
-	btn_prev = Button(ax_prev, 'Previous')
-	btn_play = Button(ax_play, 'Play')
+    slider.on_changed(slider_update)
 
-	def next_step(event):
-		step = (current_step + 1) % num_steps
-		slider.set_val(step + 1)
+    # Buttons
+    ax_next = plt.axes([0.85, 0.025, 0.1, 0.04])
+    ax_prev = plt.axes([0.7, 0.025, 0.1, 0.04])
+    ax_play = plt.axes([0.5, 0.025, 0.1, 0.04])
 
-	def prev_step(event):
-		step = (current_step - 1) % num_steps
-		slider.set_val(step + 1)
+    btn_next = Button(ax_next, 'Next')
+    btn_prev = Button(ax_prev, 'Previous')
+    btn_play = Button(ax_play, 'Play')
 
-	def play(event):
-		for step in range(current_step, num_steps):
-			slider.set_val(step + 1)
-			time.sleep(0.1)  # Adjust delay for playback
-			plt.pause(0.01)
+    def next_step(event):
+        step = (current_step + 1) % num_steps
+        slider.set_val(step + 1)
 
-	btn_next.on_clicked(next_step)
-	btn_prev.on_clicked(prev_step)
-	btn_play.on_clicked(play)
+    def prev_step(event):
+        step = (current_step - 1) % num_steps
+        slider.set_val(step + 1)
 
-	plt.show()
+    def play(event):
+        for step in range(current_step, num_steps):
+            slider.set_val(step + 1)
+            time.sleep(0.1)  # Adjust delay for playback
+            plt.pause(0.01)
+
+    btn_next.on_clicked(next_step)
+    btn_prev.on_clicked(prev_step)
+    btn_play.on_clicked(play)
+
+    plt.show()
 
 def main():
     # Check if filename is provided as command line argument

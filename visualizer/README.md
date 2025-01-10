@@ -22,4 +22,3 @@ $ source .venv/bin/activate
 ```
 (.venv) $ python3 visualize_export.py ../demo/export_trace.bin
 ```
-
