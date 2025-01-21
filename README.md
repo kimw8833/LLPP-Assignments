@@ -40,7 +40,7 @@ I used the [Network Repo Installation for Ubuntu](https://docs.nvidia.com/cuda/c
 
 Make sure to add the CUDA `bin` directory to the PATH. 
 
-I added the following line to a new file called `/etc/profile.d/cuda.sh` (need to use sudo to make this file).
+I added the following line to a new file called `/etc/profile.d/cuda.sh` (need to use sudo to make this file. Note that your binaries may be located in a different directory).
 
 ```
 export PATH=$PATH:/usr/local/cuda/bin
@@ -59,7 +59,7 @@ $ nvidia-smi # This command should list your GPU
 $ nvcc --version # This command should print the version of your cuda compiler
 ```
 
-You could also check the [post-installation steps](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/#post-installation-actions) and try verifying whether our install was successful by running some sample code.
+You could also check the [post-installation steps](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/#post-installation-actions), which include more detailed instructions on setting the PATH, and try verifying whether our install was successful by running some sample code.
 
 
 ## Building
@@ -82,7 +82,7 @@ command:
 $ qmake -query QT_INSTALL_HEADERS
 ```
 
-If this fails, try locate the header files using the following command:
+If this fails, try to locate the header files using the following command:
 ```
 $ find / -name QTHEADER.h` (where the QTHEADER.h the compiler is looking for)
 ```
