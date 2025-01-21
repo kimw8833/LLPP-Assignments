@@ -12,7 +12,7 @@ QT_HEADERS=$(shell qmake -query QT_INSTALL_HEADERS)
 QTINCLUDES=-I$(QT_HEADERS) -I$(QT_HEADERS)/QtWidgets -I$(QT_HEADERS)/QtGui -I$(QT_HEADERS)/QtCore
 INCPATH=-I../libpedsim
 LIBPATH=-L../libpedsim -L/usr/local/cuda/lib64
-CXXFLAGS=-fPIC $(INCPATH) $(QTINCLUDES) $(LIBPATH) -fopenmp
+CXXFLAGS=-g -fPIC $(INCPATH) $(QTINCLUDES) $(LIBPATH) -fopenmp
 LIBS = -lQt5Widgets -lQt5Gui -lQt5Core -lpedsim -lcudart -ltinyxml2
 LDFLAGS+="-Wl,-rpath,$(PWD)/libpedsim,-rpath,$(PWD)/../libpedsim"
 

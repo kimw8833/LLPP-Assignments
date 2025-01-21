@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button, CheckButtons
 import matplotlib.colors as mcolors
 import time
-matplotlib.use('TkAgg')
 
 colors = [(1, 0, 0, 0),    # Red with alpha=0
           (1, 0, 0, 1)]    # Red with alpha=1
