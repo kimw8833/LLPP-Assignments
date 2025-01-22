@@ -9,7 +9,7 @@ class Simulation {
             : model(model_), maxSimulationSteps(maxSteps), tickCounter(0)
             {}
         Simulation() = delete;
-        ~Simulation() {}
+        virtual ~Simulation() {}
 
         virtual int getTickCount() const { return tickCounter; };
         virtual void runSimulation() = 0;

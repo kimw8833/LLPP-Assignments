@@ -7,7 +7,7 @@ class TimingSimulation : public Simulation {
     public:
         TimingSimulation(Ped::Model &model, int maxSteps);
         TimingSimulation();
-        ~TimingSimulation();
+        ~TimingSimulation() {};
 
         void runSimulation();
 };
