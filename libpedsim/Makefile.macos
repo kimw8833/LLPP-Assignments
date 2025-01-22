@@ -1,0 +1,22 @@
+TARGET = libpedsim.dylib
+SOURCES = $(shell echo *.cpp)
+OBJECTS = $(SOURCES:.cpp=.o)
+LDFLAGS = -dynamiclib
+CXXFLAGS = -fPIC -Xpreprocessor -fopenmp -DNOCUDA --std=c++11
+INCPATH=-I/opt/homebrew/opt/libomp/include
+LDFLAGS+= -L/opt/homebrew/opt/libomp/lib
+LDFLAGS+= -lomp -shared
+LDFLAGS+= -install_name @rpath/$(TARGET)
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(CXX) $(FLAGS) $(CXXFLAGS) $(DEBUGFLAGS) $(LDFLAGS) -o $(TARGET) $(OBJECTS)
+
+%.o: %.cpp
+	$(CXX) $(FLAGS) $(CXXFLAGS) $(INCPATH) -c -o $@ $<
+
+
+
+clean:
+	-rm $(TARGET) $(OBJECTS)

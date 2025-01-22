@@ -1,0 +1,28 @@
+SOURCES=$(filter-out QTSimulation.cpp MainWindow.cpp ViewAgent.cpp, $(shell echo *.cpp))
+OBJECTS=$(filter-out QTSimulation.o MainWindow.o ViewAgent.o, $(SOURCES:.cpp=.o))
+
+LIBPEDSOURCES=$(shell echo ../libpedsim/*.cpp)
+LIBPEDOBJECTS=$(LIBPEDSOURCES:.cpp=.o)
+
+LIBPEDCUDASOURCES=$(shell echo ../libpedsim/*.cu)
+LIBPEDCUDAOBJECTS=$(LIBPEDSOURCES:.cu=.co)
+
+TARGET=demo
+INCPATH=-I../libpedsim -I/opt/homebrew/opt/libomp/include -I/opt/homebrew/Cellar/tinyxml2/10.0.0/include
+LIBPATH=-L../libpedsim -L/opt/homebrew/opt/libomp/lib -L/opt/homebrew/Cellar/tinyxml2/10.0.0/lib
+CXXFLAGS=-g -fPIC  -Xpreprocessor -fopenmp -DNOQT --std=c++11
+LIBS = -lpedsim -ltinyxml2 -lomp
+LDFLAGS+="-Wl,-rpath,../libpedsim,-rpath,./libpedsim"
+
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	g++ $(CXXFLAGS) -o $(TARGET) $(OBJECTS) $(LIBS) $(LIBPATH) $(LDFLAGS)
+
+%.o: %.cpp
+	g++ $(CXXFLAGS) $(INCPATH) -c -o $@ $<
+
+
+clean:
+	-rm $(TARGET) $(OBJECTS)

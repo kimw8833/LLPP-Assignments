@@ -11,16 +11,23 @@
 #include <iostream>
 #include <stack>
 #include <algorithm>
-#include "cuda_testkernel.h"
 #include <omp.h>
 #include <thread>
+
+#ifndef NOCDUA
+#include "cuda_testkernel.h"
+#endif
 
 #include <stdlib.h>
 
 void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<Twaypoint*> destinationsInScenario, IMPLEMENTATION implementation)
 {
+#ifndef NOCUDA
 	// Convenience test: does CUDA work on this machine?
 	cuda_test();
+#else
+    std::cout << "Not compiled for CUDA" << std::endl;
+#endif
 
 	// Set 
 	agents = std::vector<Ped::Tagent*>(agentsInScenario.begin(), agentsInScenario.end());

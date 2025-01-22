@@ -1,0 +1,37 @@
+SOURCES=$(filter-out QTSimulation.cpp MainWindow.cpp ViewAgent.cpp, $(shell echo *.cpp))
+OBJECTS=$(filter-out QTSimulation.o MainWindow.o ViewAgent.o, $(SOURCES:.cpp=.o))
+
+LIBPEDSOURCES=$(shell echo ../libpedsim/*.cpp)
+LIBPEDOBJECTS=$(LIBPEDSOURCES:.cpp=.o)
+
+LIBPEDCUDASOURCES=$(shell echo ../libpedsim/*.cu)
+LIBPEDCUDAOBJECTS=$(LIBPEDSOURCES:.cu=.co)
+
+TARGET=demo
+INCPATH=-I../libpedsim
+LIBPATH=-L../libpedsim -L/usr/local/cuda/lib64
+CXXFLAGS=-g -fPIC $(INCPATH) $(LIBPATH) -fopenmp -DNOQT
+LIBS = -lpedsim -ltinyxml2
+LDFLAGS+="-Wl,-rpath,$(PWD)/libpedsim,-rpath,$(PWD)/../libpedsim"
+
+include config.mk
+
+# If CUDA is available, add the CUDA paths and libraries
+ifdef CUDA_AVAILABLE
+LIBPATH += -L/usr/local/cuda/lib64
+LIBS += -lcudart
+endif
+
+
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	g++ $(CXXFLAGS) -o $(TARGET) $(OBJECTS) $(LIBS) $(LDFLAGS)
+
+%.o: %.cpp
+	g++ $(CXXFLAGS) $(INCPATH) -c -o $@ $<
+
+
+clean:
+	-rm $(TARGET) $(OBJECTS)
