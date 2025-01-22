@@ -8,9 +8,12 @@ Assignment of 1DT116 Low-level Parallel Programming at Uppsala University
 We will provide instructions to run the codebase on an Ubuntu system.
 If you use Windows, you should be able to use WSL2 to achieve the same goal.
 
-### Prerequisite: Qt5
+### Prerequisite: Qt5 (optional)
 
-Qt5 is required to build and run the assignment. Tested with Qt5 on Ubuntu
+If you would rather not use `qt-mode` and instead only use the `export-trace`
+mode, then you can skip this step. The configure step will take care of this.
+
+Qt5 is optionally required to build and run the assignment using qt-mode. Tested with Qt5 on Ubuntu
 24.04.1. Installed Qt5 with the following command: (You'll probably need to run with sudo)
 
 ```
@@ -20,6 +23,7 @@ Qt5 is required to build and run the assignment. Tested with Qt5 on Ubuntu
 If you cannot install Qt5, but you do have Qt4 then you will need to modify
 the include and library arguments in `demo/Makefile`. Change the `qt5` strings
 under `QTINCLUDES` and `LIBS` to your Qt version.
+
 
 ### Prerequisite: TinyXML-2
 
@@ -60,6 +64,22 @@ $ nvcc --version # This command should print the version of your cuda compiler
 ```
 
 You could also check the [post-installation steps](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/#post-installation-actions), which include more detailed instructions on setting the PATH, and try verifying whether our install was successful by running some sample code.
+
+## Configure your machine
+Whether you are working on MacOS or on Ubuntu, if you have CUDA and/or QT
+installed on your Ubuntu machine, the makefile will need to slightly differ.
+
+The provided `configure.sh` file should take care of this for you. If you are
+not using Ubuntu, you may need to slightly modify the `is_ubuntu()` function
+in the script to allow your system to be recognized. (Ask ChatGPT for help).
+
+```
+$ ./configure.sh
+```
+
+This step is required whenever you first clone your repository. (Or if you
+install the CUDA framework, or the QT5 framework, you'll need to configure
+again.)
 
 
 ## Building
