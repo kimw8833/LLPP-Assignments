@@ -215,21 +215,21 @@ int main(int argc, char*argv[]) {
             QApplication app(argc, argv);
             MainWindow mainwindow(model);
 
-            Simulation *simulation = new QTSimulation(model, max_steps, &mainwindow);
+            QTSimulation simulation(model, max_steps, &mainwindow);
 
             cout << "Demo setup complete, running ..." << endl;
 
             // Simulation mode to use when visualizing
             auto start = std::chrono::steady_clock::now();
             mainwindow.show();
-            simulation->runSimulation();
+            simulation.runSimulation();
             retval = app.exec();
 
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now() - start);
-            float fps = ((float)simulation->getTickCount()) / ((float)duration.count())*1000.0;
+            float fps = ((float)simulation.getTickCount()) / ((float)duration.count())*1000.0;
             cout << "Time: " << duration.count() << " milliseconds, " << fps << " Frames Per Second." << std::endl;
 
-            delete simulation;
+            
         }
     }
 
