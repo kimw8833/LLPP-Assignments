@@ -9,7 +9,21 @@ necessary packages. If you are working on your own machine go to the next
 section. Otherwise, you can jump to the section afterwards (Enabling the
 venv...)
 
+
+
 ## Setup venv and install packages
+
+**If you are using the 🐊 server** provided by the teaching staff.
+```
+$ source /usr/local/share/LLPP_venv/bin/activate
+```
+
+You will know that the virtual environment is enabled by the `(.venv)` or
+`(LLPP_venv)` at the beginning of your command line.
+The virtual environment has been setup and the necessary python packages have been installed.
+Jump over to the `Execute the Visualizer`.
+
+**If you are setting up on your machine** keep reading.
 
 Create a virtual environment.  This will create a virtual environment in .venv.
 Activate the venv and install the required packages:
@@ -20,20 +34,13 @@ $ source .venv/bin/activate
 (.venv) $ pip3 install -r requirements.txt
 ```
 
-## Enabling the venv after the initial installation
+### Enabling the venv after the initial installation
 
 If you are setting up your virtual environment on your own machine.
 ```
 $ source .venv/bin/activate
 ```
 
-If you are using the server provided by the teaching staff.
-```
-$ source /usr/local/share/LLPP_venv/bin/activate
-```
-
-You will know that the virtual environment is enabled by the `(.venv)` or
-`(LLPP_venv)` at the beginning of your command line.
 
 ## Execute the visualizer
 
