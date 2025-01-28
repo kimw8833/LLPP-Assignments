@@ -64,6 +64,27 @@ void Ped::Model::tick()
     }
 }
 
+// OpenMP parallel version
+void Ped::Model::tick()
+{
+// Parallelize the loop with OpenMP
+// Use OpenMP to divide the computation of agents among threads.
+// Since agents operate independently (no shared data for this assignment), no special synchronization is needed.
+#pragma omp parallel for
+
+    for (int i = 0; i < agents.size(); ++i)
+    {
+        Ped::Tagent* agent = agents[i];
+
+        // Calculate the next desired position
+        agent->computeNextDesiredPosition();
+
+        // Set the agent's position to the newly calculated one.
+        agent->setX(agent->getDesiredX());
+        agent->setY(agent->getDesiredY());
+    }
+}
+
 ////////////
 /// Everything below here relevant for Assignment 3.
 /// Don't use this for Assignment 1!
