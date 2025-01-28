@@ -42,9 +42,26 @@ void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<T
 	setupHeatmapSeq();
 }
 
+/*
 void Ped::Model::tick()
 {
-	// EDIT HERE FOR ASSIGNMENT 1
+    // EDIT HERE FOR ASSIGNMENT 1
+}
+*/
+
+// Serial version
+void Ped::Model::tick()
+{
+    // Iterate through all agents
+    for (Ped::Tagent* agent : agents)
+    {
+        // Calculate the next desired position
+        agent->computeNextDesiredPosition();
+
+        // Set the agent's position to the newly calculated one.
+        agent->setX(agent->getDesiredX());
+        agent->setY(agent->getDesiredY());
+    }
 }
 
 ////////////
