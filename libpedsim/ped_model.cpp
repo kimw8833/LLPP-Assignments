@@ -42,47 +42,57 @@ void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<T
 	setupHeatmapSeq();
 }
 
-/*
 void Ped::Model::tick()
 {
-    // EDIT HERE FOR ASSIGNMENT 1
-}
-*/
-
-// Serial version
-void Ped::Model::tick()
-{
-    // Iterate through all agents
-    for (Ped::Tagent* agent : agents)
+    switch (implementation)
     {
-        // Calculate the next desired position
-        agent->computeNextDesiredPosition();
+        case SEQ: // Serial implementation
+        {
+            // Iterate through all agents
+            for (Ped::Tagent* agent : agents)
+            {
+                // Calculate the next desired position
+                agent->computeNextDesiredPosition();
 
-        // Set the agent's position to the newly calculated one.
-        agent->setX(agent->getDesiredX());
-        agent->setY(agent->getDesiredY());
+                // Set the agent's position to the newly calculated one
+                agent->setX(agent->getDesiredX());
+                agent->setY(agent->getDesiredY());
+            }
+        }
+        break;
+
+        case OMP: // OpenMP implementation
+        {
+            // Parallelize the loop with OpenMP
+            // Use OpenMP to divide the computation of agents among threads
+            // Since agents operate independently (no shared data for this assignment), no special synchronization is needed.
+            #pragma omp parallel for
+
+            for (int i = 0; i < agents.size(); ++i)
+            {
+                Ped::Tagent* agent = agents[i];
+
+                // Calculate the next desired position
+                agent->computeNextDesiredPosition();
+
+                // Set the agent's position to the newly calculated one
+                agent->setX(agent->getDesiredX());
+                agent->setY(agent->getDesiredY());
+            }
+        }
+        break;
+
+        case PTHREAD:
+        { // C++ Threads implementation
+            //TODO
+        }
     }
 }
 
 // OpenMP parallel version
 void Ped::Model::tick()
 {
-// Parallelize the loop with OpenMP
-// Use OpenMP to divide the computation of agents among threads.
-// Since agents operate independently (no shared data for this assignment), no special synchronization is needed.
-#pragma omp parallel for
 
-    for (int i = 0; i < agents.size(); ++i)
-    {
-        Ped::Tagent* agent = agents[i];
-
-        // Calculate the next desired position
-        agent->computeNextDesiredPosition();
-
-        // Set the agent's position to the newly calculated one.
-        agent->setX(agent->getDesiredX());
-        agent->setY(agent->getDesiredY());
-    }
 }
 
 ////////////
