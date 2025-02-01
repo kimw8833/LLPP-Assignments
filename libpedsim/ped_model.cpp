@@ -58,43 +58,42 @@ void Ped::Model::tick()
 {
     switch (implementation)
     {
-    case SEQ:
-    { // Sequential update of all agents
-        for (int i = 0; i < agents.size(); ++i)
-        {
-            updateAgentPosition(agents[i]);
+        case SEQ:
+        { // Sequential update of all agents
+            for (int i = 0; i < agents.size(); ++i)
+            {
+                updateAgentPosition(agents[i]);
+            }
         }
-    }
-    break;
+        break;
 
-    case OMP:
-    { // Parallel update using OpenMP
-        #pragma omp parallel for
-        for (int i = 0; i < agents.size(); ++i)
-        {
-            updateAgentPosition(agents[i]);
+        case OMP:
+        { // Parallel update using OpenMP
+            #pragma omp parallel for
+            for (int i = 0; i < agents.size(); ++i)
+            {
+                updateAgentPosition(agents[i]);
+            }
         }
-    }
-    break;
+        break;
 
-    case PTHREAD:
-    { // Multi-threaded update using C++ threads
-        std::vector<std::thread> threads;
+        case PTHREAD:
+        { // Multi-threaded update using C++ threads
+            std::vector<std::thread> threads;
 
-        for (int i = 0; i < 8; ++i) {
-            threads.emplace_back([&, i]() {
-                for (int j = i; j < agents.size(); j += 8) {
-                    updateAgentPosition(agents[j]);
-                }
-            });
+            for (int i = 0; i < 8; ++i) {
+                threads.emplace_back([&, i]() {
+                    for (int j = i; j < agents.size(); j += 8) {
+                        updateAgentPosition(agents[j]);
+                    }
+                });
+            }
+
+            for (auto& t : threads) {
+                t.join();
+            }
         }
-
-        for (auto& t : threads) {
-            t.join();
-        }
-    }
-    break;
-
+        break;
     } // end of switch
 }
 
