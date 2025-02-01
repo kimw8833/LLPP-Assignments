@@ -42,57 +42,60 @@ void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<T
 	setupHeatmapSeq();
 }
 
+//////////////////
+/// Assignment 1
+//////////////////
+
+void updateAgentPosition(Ped::Tagent* agent) {
+    if(agent) {
+        agent->computeNextDesiredPosition();
+        agent->setX(agent->getDesiredX());
+        agent->setY(agent->getDesiredY());
+    }
+}
+
 void Ped::Model::tick()
 {
     switch (implementation)
     {
-        case SEQ: // Serial implementation
+    case SEQ:
+    { // Sequential update of all agents
+        for (int i = 0; i < agents.size(); ++i)
         {
-            // Iterate through all agents
-            for (Ped::Tagent* agent : agents)
-            {
-                // Calculate the next desired position
-                agent->computeNextDesiredPosition();
-
-                // Set the agent's position to the newly calculated one
-                agent->setX(agent->getDesiredX());
-                agent->setY(agent->getDesiredY());
-            }
-        }
-        break;
-
-        case OMP: // OpenMP implementation
-        {
-            // Parallelize the loop with OpenMP
-            // Use OpenMP to divide the computation of agents among threads
-            // Since agents operate independently (no shared data for this assignment), no special synchronization is needed.
-            #pragma omp parallel for
-
-            for (int i = 0; i < agents.size(); ++i)
-            {
-                Ped::Tagent* agent = agents[i];
-
-                // Calculate the next desired position
-                agent->computeNextDesiredPosition();
-
-                // Set the agent's position to the newly calculated one
-                agent->setX(agent->getDesiredX());
-                agent->setY(agent->getDesiredY());
-            }
-        }
-        break;
-
-        case PTHREAD:
-        { // C++ Threads implementation
-            //TODO
+            updateAgentPosition(agents[i]);
         }
     }
-}
+    break;
 
-// OpenMP parallel version
-void Ped::Model::tick()
-{
+    case OMP:
+    { // Parallel update using OpenMP
+        #pragma omp parallel for
+        for (int i = 0; i < agents.size(); ++i)
+        {
+            updateAgentPosition(agents[i]);
+        }
+    }
+    break;
 
+    case PTHREAD:
+    { // Multi-threaded update using C++ threads
+        std::vector<std::thread> threads;
+
+        for (int i = 0; i < 8; ++i) {
+            threads.emplace_back([&, i]() {
+                for (int j = i; j < agents.size(); j += 8) {
+                    updateAgentPosition(agents[j]);
+                }
+            });
+        }
+
+        for (auto& t : threads) {
+            t.join();
+        }
+    }
+    break;
+
+    } // end of switch
 }
 
 ////////////
