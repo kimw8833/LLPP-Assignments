@@ -41,7 +41,6 @@ void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<T
 	// Set up heatmap (relevant for Assignment 4)
 	setupHeatmapSeq();
 }
-
 //////////////////
 /// Assignment 1
 //////////////////
@@ -56,6 +55,7 @@ void updateAgentPosition(Ped::Tagent* agent) {
 
 void Ped::Model::tick()
 {
+
     switch (implementation)
     {
         case SEQ:
@@ -91,6 +91,65 @@ void Ped::Model::tick()
 
             for (auto& t : threads) {
                 t.join();
+            }
+        }
+        break;
+
+//////////////////
+/// Assignment 2
+//////////////////
+
+        case VECTOR:
+        { // SIMD Parallelization: Process 4 agents at once using AVX
+            int size = agents.size(); // Antal all agents
+            int remainder = size % 4; // Handle any remaining agents later
+
+            // Allocate aligned memory for vectorized operations
+            alignas(32) float desiredX[8];
+            alignas(32) float desiredY[8];
+
+            for (int i = 0; i + 3 < size; i += 4)
+            {
+                // Compute next desired positions before SIMD operations
+                agents[i]->computeNextDesiredPosition();
+                agents[i + 1]->computeNextDesiredPosition();
+                agents[i + 2]->computeNextDesiredPosition();
+                agents[i + 3]->computeNextDesiredPosition();
+
+                // Load desired positions into AVX registers
+                __m256 newX = _mm256_set_ps(
+                    0, 0, 0, 0,  // Padding for unused lanes
+                    agents[i + 3]->getDesiredX(),
+                    agents[i + 2]->getDesiredX(),
+                    agents[i + 1]->getDesiredX(),
+                    agents[i]->getDesiredX());
+
+                __m256 newY = _mm256_set_ps(
+                    0, 0, 0, 0,  // Padding for unused lanes
+                    agents[i + 3]->getDesiredY(),
+                    agents[i + 2]->getDesiredY(),
+                    agents[i + 1]->getDesiredY(),
+                    agents[i]->getDesiredY());
+
+                // Store computed positions
+                _mm256_store_ps(desiredX, newX);
+                _mm256_store_ps(desiredY, newY);
+
+                // Assign new positions to agents
+                agents[i]->setX(desiredX[4]);
+                agents[i]->setY(desiredY[4]);
+                agents[i + 1]->setX(desiredX[5]);
+                agents[i + 1]->setY(desiredY[5]);
+                agents[i + 2]->setX(desiredX[6]);
+                agents[i + 2]->setY(desiredY[6]);
+                agents[i + 3]->setX(desiredX[7]);
+                agents[i + 3]->setY(desiredY[7]);
+            }
+
+            // Process remaining agents sequentially (if not a multiple of 4)
+            for (int i = size - remainder; i < size; i++)
+            {
+                updateAgentPosition(agents[i]);
             }
         }
         break;
