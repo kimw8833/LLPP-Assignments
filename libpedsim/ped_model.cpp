@@ -99,60 +99,58 @@ void Ped::Model::tick()
 /// Assignment 2
 //////////////////
 
-        case VECTOR:
-        { // SIMD Parallelization: Process 4 agents at once using AVX
-            int size = agents.size(); // Antal all agents
-            int remainder = size % 4; // Handle any remaining agents later
+		case VECTOR:
+		{ 
+			size_t size     = agents.size();
+			size_t i        = 0;
+			int remainder   = size % 4;
 
-            // Allocate aligned memory for vectorized operations
-            alignas(32) float desiredX[8];
-            alignas(32) float desiredY[8];
+			// Temporary storage for aligned SIMD writes
+			alignas(16) int tempX[4];
+			alignas(16) int tempY[4];
 
-            for (int i = 0; i + 3 < size; i += 4)
-            {
-                // Compute next desired positions before SIMD operations
-                agents[i]->computeNextDesiredPosition();
-                agents[i + 1]->computeNextDesiredPosition();
-                agents[i + 2]->computeNextDesiredPosition();
-                agents[i + 3]->computeNextDesiredPosition();
+			for (; i + 4 <= size; i += 4) 
+			{	
+				// Compute next desired positions for 4 agents
+				agents[i]->computeNextDesiredPosition();
+				agents[i + 1]->computeNextDesiredPosition();
+				agents[i + 2]->computeNextDesiredPosition();
+				agents[i + 3]->computeNextDesiredPosition();
 
-                // Load desired positions into AVX registers
-                __m256 newX = _mm256_set_ps(
-                    0, 0, 0, 0,  // Padding for unused lanes
-                    agents[i + 3]->getDesiredX(),
-                    agents[i + 2]->getDesiredX(),
-                    agents[i + 1]->getDesiredX(),
-                    agents[i]->getDesiredX());
+				// Load desired positions into SIMD registers
+				__m128i desiredX = _mm_set_epi32(
+					agents[i + 3]->getDesiredX(),
+					agents[i + 2]->getDesiredX(),
+					agents[i + 1]->getDesiredX(),
+					agents[i]->getDesiredX()
+				);
 
-                __m256 newY = _mm256_set_ps(
-                    0, 0, 0, 0,  // Padding for unused lanes
-                    agents[i + 3]->getDesiredY(),
-                    agents[i + 2]->getDesiredY(),
-                    agents[i + 1]->getDesiredY(),
-                    agents[i]->getDesiredY());
+				__m128i desiredY = _mm_set_epi32(
+					agents[i + 3]->getDesiredY(),
+					agents[i + 2]->getDesiredY(),
+					agents[i + 1]->getDesiredY(),
+					agents[i]->getDesiredY()
+				);
 
-                // Store computed positions
-                _mm256_store_ps(desiredX, newX);
-                _mm256_store_ps(desiredY, newY);
+				// Store new positions in a temporary buffer first
+				_mm_store_si128((__m128i*) tempX, desiredX);
+				_mm_store_si128((__m128i*) tempY, desiredY);
 
-                // Assign new positions to agents
-                agents[i]->setX(desiredX[4]);
-                agents[i]->setY(desiredY[4]);
-                agents[i + 1]->setX(desiredX[5]);
-                agents[i + 1]->setY(desiredY[5]);
-                agents[i + 2]->setX(desiredX[6]);
-                agents[i + 2]->setY(desiredY[6]);
-                agents[i + 3]->setX(desiredX[7]);
-                agents[i + 3]->setY(desiredY[7]);
-            }
+				//Copy values safely to agents
+				agents[i]->setX(tempX[0]); agents[i]->setY(tempY[0]);
+				agents[i + 1]->setX(tempX[1]); agents[i + 1]->setY(tempY[1]);
+				agents[i + 2]->setX(tempX[2]); agents[i + 2]->setY(tempY[2]);
+				agents[i + 3]->setX(tempX[3]); agents[i + 3]->setY(tempY[3]);
+			}
 
-            // Process remaining agents sequentially (if not a multiple of 4)
-            for (int i = size - remainder; i < size; i++)
-            {
-                updateAgentPosition(agents[i]);
-            }
-        }
-        break;
+			// Handle remaining agents (in case of non-multiples of 4)
+			for (i = size - remainder; i < size; i++) 
+			{
+				updateAgentPosition(agents[i]);  // Process remaining agents one-by-one
+			}
+		}
+		break;
+
     } // end of switch
 }
 
