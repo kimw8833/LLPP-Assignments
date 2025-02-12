@@ -45,6 +45,25 @@ void Ped::Tagent::addWaypoint(Twaypoint* wp) {
 	waypoints.push_back(wp);
 }
 
+void Ped::Tagent::updateDestinationList() {
+    if (destination != NULL) {
+        waypoints.push_back(destination);
+    }
+    if (!waypoints.empty() && destination != NULL) {
+        destination = waypoints.front();
+        waypoints.pop_front();
+    } else {
+        destination = NULL; 
+    }
+}
+
+
+
+void Ped::Tagent::changeDesiredDestination(int desiredx, int desiredy){
+	desiredPositionX = desiredx; 
+	desiredPositionY = desiredy; 
+}
+
 Ped::Twaypoint* Ped::Tagent::getNextDestination() {
 	Ped::Twaypoint* nextDestination = NULL;
 	bool agentReachedDestination = false;

@@ -48,6 +48,15 @@ namespace Ped {
 		// Adds a new waypoint to reach for this agent
 		void addWaypoint(Twaypoint* wp);
 
+		//simd addition
+		void updateDestinationList(); 
+
+		void changeDesiredDestination(int desiredx, int desiredy); 
+
+		int getDestX() const {return destX; };
+		int getDestY() const {return destY; };
+		int getRadius() const {return radius; };
+
 	private:
 		Tagent() {};
 
@@ -64,6 +73,24 @@ namespace Ped {
 
 		// The last destination
 		Twaypoint* lastDestination;
+
+		int destX;
+		int destY;
+		int radius; 
+
+		void initDestination(){
+			if(destination != NULL)
+			{
+				destX = (int)destination->getx();
+				destY = (int)destination->gety();
+				radius = (int)destination->getr(); 
+			}
+			else{
+				destX = 0; 
+				destY = 0; 
+				radius = 0; 
+			}
+		}
 
 		// The queue of all destinations that this agent still has to visit
 		deque<Twaypoint*> waypoints;

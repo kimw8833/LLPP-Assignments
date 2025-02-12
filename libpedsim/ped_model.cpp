@@ -101,53 +101,121 @@ void Ped::Model::tick()
 
 		case VECTOR:
 		{ 
-			size_t size     = agents.size();
-			size_t i        = 0;
-			int remainder   = size % 4;
+			
+	
+    	int remainder = agents.size() % 4; 
 
-			// Temporary storage for aligned SIMD writes
-			alignas(16) int tempX[4];
-			alignas(16) int tempY[4];
+    	//divide agents into simd agents = vectors
+    	for(int i = 0; i < agents.size()-remainder; i += 4)
+    	{
+        	alignas(16) float agent_x_array[4], agent_y_array[4], dest_x_array[4], dest_y_array[4], radius_array[4];
 
-			for (; i + 4 <= size; i += 4) 
-			{	
-				// Compute next desired positions for 4 agents
-				agents[i]->computeNextDesiredPosition();
-				agents[i + 1]->computeNextDesiredPosition();
-				agents[i + 2]->computeNextDesiredPosition();
-				agents[i + 3]->computeNextDesiredPosition();
+        
 
-				// Load desired positions into SIMD registers
-				__m128i desiredX = _mm_set_epi32(
-					agents[i + 3]->getDesiredX(),
-					agents[i + 2]->getDesiredX(),
-					agents[i + 1]->getDesiredX(),
-					agents[i]->getDesiredX()
-				);
+        	// Load the agent data into SIMD registers
+        	for (int j = 0; j < 4 && (i + j) < agents.size()-remainder; ++j) {
+		
+				agent_x_array[j] = (float)agents[i + j]->getX();
+				agent_y_array[j] = (float)agents[i + j]->getY();
+				dest_x_array[j] = (float)agents[i + j]->getDestX();
+				dest_y_array[j] = (float)agents[i + j]->getDestY();
+				radius_array[j] = (float)agents[i + j]->getRadius();
+			
+        	}
+        
+        	// Load data into SIMD registers
+        	__m128 agent_xs = _mm_load_ps(agent_x_array);
+    		__m128 agent_ys = _mm_load_ps(agent_y_array);
+    		__m128 dest_x = _mm_load_ps(dest_x_array);
+    		__m128 dest_y = _mm_load_ps(dest_y_array);
+    		__m128 radius = _mm_load_ps(radius_array);
 
-				__m128i desiredY = _mm_set_epi32(
-					agents[i + 3]->getDesiredY(),
-					agents[i + 2]->getDesiredY(),
-					agents[i + 1]->getDesiredY(),
-					agents[i]->getDesiredY()
-				);
+        	//get next destination function med simd
+       		__m128 diffx = _mm_sub_ps(dest_x, agent_xs); 
+        	__m128 diffy = _mm_sub_ps(dest_y, agent_ys); 
 
-				// Store new positions in a temporary buffer first
-				_mm_store_si128((__m128i*) tempX, desiredX);
-				_mm_store_si128((__m128i*) tempY, desiredY);
+        	diffx = _mm_mul_ps(diffx, diffx);  
+        	diffy = _mm_mul_ps(diffy, diffy); 
+        	__m128 sum = _mm_add_ps(diffx, diffy);  
+        	__m128 length = _mm_sqrt_ps(sum);  // Euclidean distance
+			// Prevent division by zero
+			__m128 epsilon = _mm_set1_ps(1e-6f);
+			length = _mm_add_ps(length, epsilon);
 
-				//Copy values safely to agents
-				agents[i]->setX(tempX[0]); agents[i]->setY(tempY[0]);
-				agents[i + 1]->setX(tempX[1]); agents[i + 1]->setY(tempY[1]);
-				agents[i + 2]->setX(tempX[2]); agents[i + 2]->setY(tempY[2]);
-				agents[i + 3]->setX(tempX[3]); agents[i + 3]->setY(tempY[3]);
-			}
+        	// check if agent has reached it's destination 
+			//puts 0 for not reached one for reached
+        	__m128 agentReachedDestination = _mm_cmplt_ps(length, radius);
 
-			// Handle remaining agents (in case of non-multiples of 4)
-			for (i = size - remainder; i < size; i++) 
-			{
-				updateAgentPosition(agents[i]);  // Process remaining agents one-by-one
-			}
+        	alignas(16) int results[4];
+        	_mm_store_ps(reinterpret_cast<float*>(results), agentReachedDestination);
+
+			//update destination this is still done sequentially ASK about that 
+        	for (int j = 0; j < 4; j++) {
+            	if (results[j] != 0) { 
+                	if (i + j < agents.size()){
+						agents[i + j]->updateDestinationList();
+					}  
+            	} 
+        	}
+
+			for (int j = 0; j < 4 && (i + j) < agents.size()-remainder; ++j) {
+		
+				dest_x_array[j] = (float)agents[i + j]->getDestX();
+				dest_y_array[j] = (float)agents[i + j]->getDestY();
+				radius_array[j] = (float)agents[i + j]->getRadius();
+			
+        	}
+
+			dest_x = _mm_load_ps(dest_x_array);
+    		dest_y = _mm_load_ps(dest_y_array);
+    		radius = _mm_load_ps(radius_array);
+		
+
+        	// compute next desired position function with simd
+			//diffx = _mm_sub_ps(dest_x, agent_xs); 
+        	//diffy = _mm_sub_ps(dest_y, agent_ys); 
+
+        	//diffx = _mm_mul_ps(diffx, diffx);  
+        	//diffy = _mm_mul_ps(diffy, diffy); 
+        	//sum = _mm_add_ps(diffx, diffy);  
+        	//length = _mm_sqrt_ps(sum); 
+
+			__m128 add_x_diffx = _mm_add_ps(agent_xs, dest_x); 
+			__m128 add_y_diffy = _mm_add_ps(agent_ys, dest_y);
+        	__m128 diffX_div_len = _mm_div_ps(add_x_diffx, length);
+        	__m128 diffY_div_len = _mm_div_ps(add_y_diffy, length);
+
+        	__m128 desiredPosX = _mm_add_ps(agent_xs, diffX_div_len);
+        	__m128 desiredPosY = _mm_add_ps(agent_ys, diffY_div_len);
+
+        	__m128i intPosX = _mm_cvtps_epi32(desiredPosX);
+    		__m128i intPosY = _mm_cvtps_epi32(desiredPosY);
+        	// Store the rounded values into arrays
+        	alignas(16) int posX_values[4], posY_values[4];
+    		_mm_store_si128(reinterpret_cast<__m128i*>(posX_values), intPosX);
+    		_mm_store_si128(reinterpret_cast<__m128i*>(posY_values), intPosY);
+
+        	// Update agent desired positions (still sequentially)
+        	for (int j = 0; j < 4; j++) {
+				if (i + j < agents.size()) {
+					agents[i + j]->changeDesiredDestination(posX_values[j], posY_values[j]);
+					printf("%d \n", posX_values[j]);
+					printf("%d \n", posY_values[j]);
+					agents[i + j]->setX(posX_values[j]);
+					agents[i + j]->setY(posY_values[j]);
+				}
+			
+        	}
+
+		
+    }
+
+	for(int i = agents.size()-remainder; i < agents.size(); i ++)
+	{
+		updateAgentPosition(agents[i]);
+	}
+
+
 		}
 		break;
 
