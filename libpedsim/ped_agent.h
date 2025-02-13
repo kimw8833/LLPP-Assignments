@@ -38,6 +38,10 @@ namespace Ped {
 		void setX(int newX) { x = newX; }
 		void setY(int newY) { y = newY; }
 
+		void setDestX (int newDestX) {destX = newDestX;}
+		void setDestY (int newDestY) {destY = newDestY;}
+		void setradius (int newradius) {radius = newradius;}
+
 		// Update the position according to get closer
 		// to the current destination
 		void computeNextDesiredPosition();
@@ -52,11 +56,13 @@ namespace Ped {
 		//simd addition
 		void updateDestinationList(); 
 
+		void destInit();
+
 		void changeDesiredDestination(int desiredx, int desiredy); 
 
-		int getDestX() const {return destX; };
-		int getDestY() const {return destY; };
-		int getRadius() const {return radius; };
+		int getDestX(); 
+		int getDestY(); 
+		int getRadius(); 
 
 	private:
 		Tagent() {};
@@ -78,20 +84,6 @@ namespace Ped {
 		int destX;
 		int destY;
 		int radius; 
-
-		void initDestination(){
-			if(destination != NULL)
-			{
-				destX = (int)destination->getx();
-				destY = (int)destination->gety();
-				radius = (int)destination->getr(); 
-			}
-			else{
-				destX = 0; 
-				destY = 0; 
-				radius = 0; 
-			}
-		}
 
 		// The queue of all destinations that this agent still has to visit
 		deque<Twaypoint*> waypoints;

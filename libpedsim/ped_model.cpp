@@ -52,7 +52,9 @@ void updateAgentPosition(Ped::Tagent* agent) {
     if(agent) {
         agent->computeNextDesiredPosition();
         agent->setX(agent->getDesiredX());
+		//printf("x val %d \n",agent->getDesiredX());
         agent->setY(agent->getDesiredY());
+		//printf("y val %d \n",agent->getDesiredY());
     }
 }
 
@@ -115,13 +117,21 @@ void Ped::Model::tick()
 			
         
 
-        	// Load the agent data into SIMD registers
+        	// Load the agent data into 4 space arrays
         	for (int j = 0; j < 4 && (i + j) < agents.size()-remainder; ++j) {
-		
+				
+				agents[i+j]->setDestX(dest_x_array[j]);
+				agents[i+j]->setDestY(dest_y_array[j]);
+				agents[i+j]->setradius(radius_array[j]);
+
 				agent_x_array[j] = (float)agents[i + j]->getX();
 				agent_y_array[j] = (float)agents[i + j]->getY();
+
+				agents[i+j]->destInit();
+
 				dest_x_array[j] = (float)agents[i + j]->getDestX();
 				dest_y_array[j] = (float)agents[i + j]->getDestY();
+				printf("OG dest X value %dOG dest Y value %d \n", (int)agents[i + j]->getDestX(), (int)agents[i + j]->getDestY());
 				radius_array[j] = (float)agents[i + j]->getRadius();
 			
         	}
@@ -162,9 +172,12 @@ void Ped::Model::tick()
         	}
 
 			for (int j = 0; j < 4 && (i + j) < agents.size()-remainder; ++j) {
-		
+				
+				agents[i+j]->destInit();
 				dest_x_array[j] = (float)agents[i + j]->getDestX();
+				printf("New dest X value %d \n", (int)agents[i + j]->getDestX());
 				dest_y_array[j] = (float)agents[i + j]->getDestY();
+				printf("New dest Y value %d \n", (int)agents[i + j]->getDestY());
 				radius_array[j] = (float)agents[i + j]->getRadius();
 			
         	}
@@ -178,18 +191,24 @@ void Ped::Model::tick()
 			diffx = _mm_sub_ps(dest_x, agent_xs); 
         	diffy = _mm_sub_ps(dest_y, agent_ys); 
 
-        	diffx = _mm_mul_ps(diffx, diffx);  
-        	diffy = _mm_mul_ps(diffy, diffy); 
-        	sum = _mm_add_ps(diffx, diffy);  
+        	__m128 xmul = _mm_mul_ps(diffx, diffx);  
+        	__m128 ymul = _mm_mul_ps(diffy, diffy); 
+        	sum = _mm_add_ps(xmul, ymul);  
         	length = _mm_sqrt_ps(sum); 
 
-			__m128 add_x_diffx = _mm_add_ps(agent_xs, dest_x); 
-			__m128 add_y_diffy = _mm_add_ps(agent_ys, dest_y);
-        	__m128 diffX_div_len = _mm_div_ps(add_x_diffx, length);
-        	__m128 diffY_div_len = _mm_div_ps(add_y_diffy, length);
+			__m128 diffX_div_len = _mm_div_ps(diffx, length);
+        	__m128 diffY_div_len = _mm_div_ps(diffy, length);
 
-        	__m128 desiredPosX = _mm_add_ps(agent_xs, diffX_div_len);
-        	__m128 desiredPosY = _mm_add_ps(agent_ys, diffY_div_len);
+			__m128 add_x_diffx = _mm_add_ps(agent_xs, diffX_div_len); 
+			__m128 add_y_diffy = _mm_add_ps(agent_ys, diffY_div_len);
+        	
+			__m128 p5 = _mm_set1_ps(0.5);
+
+        	add_x_diffx= _mm_add_ps(add_x_diffx, p5);
+			add_y_diffy= _mm_add_ps(add_y_diffy, p5);
+
+			__m128 desiredPosX = _mm_floor_ps(add_x_diffx);
+			__m128 desiredPosY = _mm_floor_ps(add_y_diffy);
 
         	__m128i intPosX = _mm_cvtps_epi32(desiredPosX);
     		__m128i intPosY = _mm_cvtps_epi32(desiredPosY);
@@ -202,8 +221,8 @@ void Ped::Model::tick()
         	for (int j = 0; j < 4; j++) {
 				if (i + j < agents.size()) {
 					agents[i + j]->changeDesiredDestination(posX_values[j], posY_values[j]);
-					//printf("%d \n", posX_values[j]);
-					//printf("%d \n", posY_values[j]);
+					printf("new X value %d \n", posX_values[j]);
+					printf("new Y value%d \n", posY_values[j]);
 					agents[i + j]->setX(posX_values[j]);
 					agents[i + j]->setY(posY_values[j]);
 				}
