@@ -18,6 +18,7 @@
 
 #include <vector>
 #include <deque>
+#include "ped_waypoint.h"
 
 using namespace std;
 

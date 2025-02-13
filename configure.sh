@@ -81,7 +81,7 @@ elif is_ubuntu; then
     if check_qt5; then
         demo_makefile="Makefile.qt"
     else
-        demo_makefile="Makefile.noqt"
+        demo_makefile="Makefile.qt"
     fi
 
     create_symlink "$demo_makefile" "$demo_dir/Makefile"

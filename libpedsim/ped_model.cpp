@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <omp.h>
 #include <thread>
+#include <immintrin.h>
+#include <xmmintrin.h>
 
 #ifndef NOCDUA
 #include "cuda_testkernel.h"
@@ -37,6 +39,7 @@ void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<T
 
 	// Sets the chosen implemenation. Standard in the given code is SEQ
 	this->implementation = implementation;
+	
 
 	// Set up heatmap (relevant for Assignment 4)
 	setupHeatmapSeq();
@@ -58,7 +61,7 @@ void Ped::Model::tick()
 
     switch (implementation)
     {
-        case SEQ:
+        case VECTOR:
         { // Sequential update of all agents
             for (int i = 0; i < agents.size(); ++i)
             {
@@ -99,7 +102,7 @@ void Ped::Model::tick()
 /// Assignment 2
 //////////////////
 
-		case VECTOR:
+		case SEQ:
 		{ 
 			
 	
@@ -109,7 +112,7 @@ void Ped::Model::tick()
     	for(int i = 0; i < agents.size()-remainder; i += 4)
     	{
         	alignas(16) float agent_x_array[4], agent_y_array[4], dest_x_array[4], dest_y_array[4], radius_array[4];
-
+			
         
 
         	// Load the agent data into SIMD registers
@@ -172,13 +175,13 @@ void Ped::Model::tick()
 		
 
         	// compute next desired position function with simd
-			//diffx = _mm_sub_ps(dest_x, agent_xs); 
-        	//diffy = _mm_sub_ps(dest_y, agent_ys); 
+			diffx = _mm_sub_ps(dest_x, agent_xs); 
+        	diffy = _mm_sub_ps(dest_y, agent_ys); 
 
-        	//diffx = _mm_mul_ps(diffx, diffx);  
-        	//diffy = _mm_mul_ps(diffy, diffy); 
-        	//sum = _mm_add_ps(diffx, diffy);  
-        	//length = _mm_sqrt_ps(sum); 
+        	diffx = _mm_mul_ps(diffx, diffx);  
+        	diffy = _mm_mul_ps(diffy, diffy); 
+        	sum = _mm_add_ps(diffx, diffy);  
+        	length = _mm_sqrt_ps(sum); 
 
 			__m128 add_x_diffx = _mm_add_ps(agent_xs, dest_x); 
 			__m128 add_y_diffy = _mm_add_ps(agent_ys, dest_y);
@@ -199,8 +202,8 @@ void Ped::Model::tick()
         	for (int j = 0; j < 4; j++) {
 				if (i + j < agents.size()) {
 					agents[i + j]->changeDesiredDestination(posX_values[j], posY_values[j]);
-					printf("%d \n", posX_values[j]);
-					printf("%d \n", posY_values[j]);
+					//printf("%d \n", posX_values[j]);
+					//printf("%d \n", posY_values[j]);
 					agents[i + j]->setX(posX_values[j]);
 					agents[i + j]->setY(posY_values[j]);
 				}

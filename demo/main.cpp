@@ -48,6 +48,8 @@ void print_usage(char *command) {
     printf("\nIf you need visualization, please try using the --export-trace mode. You can even copy the trace file to your computer and locally run the python visualizer. (You'll need to fork the assignment repository on your local machine too.)\n");
 }
 
+
+
 int main(int argc, char*argv[]) {
     bool timing_mode = false;
 #ifndef NOQT
@@ -56,7 +58,7 @@ int main(int argc, char*argv[]) {
     bool export_trace = true;
 #endif
     std::string scenefile = std::string("scenario.xml");
-    int max_steps = 1000;
+    int max_steps = 100;
     Ped::IMPLEMENTATION implementation_to_test = Ped::SEQ;
     std::string export_trace_file = "";
 
@@ -217,6 +219,8 @@ int main(int argc, char*argv[]) {
                 delete simulation;
 #ifndef NOQT
         } else {
+
+            printf("graphics mode");
             // Graphics version
             Ped::Model model;
             ParseScenario parser(scenefile);
