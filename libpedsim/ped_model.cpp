@@ -8,19 +8,17 @@
 #include "ped_model.h"
 #include "ped_waypoint.h"
 #include "ped_model.h"
+#include <stdlib.h>
 #include <iostream>
 #include <stack>
 #include <algorithm>
 #include <omp.h>
 #include <thread>
-#include <immintrin.h>
-#include <xmmintrin.h>
+#include <immintrin.h>  // For SIMD intrinsics (AVX, SSE)
 
 #ifndef NOCDUA
 #include "cuda_testkernel.h"
 #endif
-
-#include <stdlib.h>
 
 void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<Twaypoint*> destinationsInScenario, IMPLEMENTATION implementation)
 {
@@ -43,18 +41,51 @@ void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<T
 
 	// Set up heatmap (relevant for Assignment 4)
 	setupHeatmapSeq();
+
+	// A2 SIMD
+    
+	if (implementation == VECTOR)
+    {
+        // Save the number of agents
+        numAgents   = agents.size();
+        
+        //
+        // Allocate aligned memory (Linux/macOS: posix_memalign)
+        //
+        // Choose the no. of bytes
+        size_t fourAgents   = 16; // SSE 128bits
+        size_t eightAgents  = 32; // AVX
+    
+        if (numAgents > 0) {
+
+            if (posix_memalign((void**)&xPos,       fourAgents, numAgents   * sizeof(float)) != 0 ||
+                posix_memalign((void**)&yPos,       fourAgents, numAgents   * sizeof(float)) != 0 ||
+                posix_memalign((void**)&xDestPos,   fourAgents, numAgents   * sizeof(float)) != 0 ||
+                posix_memalign((void**)&yDestPos,   fourAgents, numAgents   * sizeof(float)) != 0 ||
+                posix_memalign((void**)&destR,      fourAgents, numAgents   * sizeof(float)) != 0 ) {
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        for (size_t i = 0; i < numAgents; i++) {
+
+            xPos[i]     = agents[i]->getX();
+            yPos[i]     = agents[i]->getY();
+
+            agents[i]->destInit();
+            xDestPos[i] = agents[i]->getDestX();
+            yDestPos[i] = agents[i]->getDestY();
+            destR[i]    = agents[i]->getRadius();
+            
+        }
+    }
 }
-//////////////////
-/// Assignment 1
-//////////////////
 
 void updateAgentPosition(Ped::Tagent* agent) {
     if(agent) {
         agent->computeNextDesiredPosition();
         agent->setX(agent->getDesiredX());
-		//printf("x val %d \n",agent->getDesiredX());
         agent->setY(agent->getDesiredY());
-		//printf("y val %d \n",agent->getDesiredY());
     }
 }
 
@@ -63,7 +94,7 @@ void Ped::Model::tick()
 
     switch (implementation)
     {
-        case VECTOR:
+        case SEQ:
         { // Sequential update of all agents
             for (int i = 0; i < agents.size(); ++i)
             {
@@ -104,142 +135,100 @@ void Ped::Model::tick()
 /// Assignment 2
 //////////////////
 
-		case SEQ:
-		{ 
-			
-	
-    	int remainder = agents.size() % 4; 
+		case VECTOR: // SSE-based processing 
+        { 
+            size_t i = 0;
+            for (; i + 4 <= numAgents; i += 4) {         
 
-    	//divide agents into simd agents = vectors
-    	for(int i = 0; i < agents.size()-remainder; i += 4)
-    	{
-        	alignas(16) float agent_x_array[4], agent_y_array[4], dest_x_array[4], dest_y_array[4], radius_array[4];
-			
-        
+                // Load data into SIMD registers
+                __m128 agent_xs = _mm_load_ps(&xPos[i]); 
+                __m128 agent_ys = _mm_load_ps(&yPos[i]); 
+                __m128 dest_x   = _mm_load_ps(&xDestPos[i]); 
+                __m128 dest_y   = _mm_load_ps(&yDestPos[i]); 
+                __m128 radius   = _mm_load_ps(&destR[i]);
 
-        	// Load the agent data into 4 space arrays
-        	for (int j = 0; j < 4 && (i + j) < agents.size()-remainder; ++j) {
-				
-				agents[i+j]->setDestX(dest_x_array[j]);
-				agents[i+j]->setDestY(dest_y_array[j]);
-				agents[i+j]->setradius(radius_array[j]);
+                // Get next destination function med simd
+       		    __m128 diffx    = _mm_sub_ps(dest_x, agent_xs); 
+        	    __m128 diffy    = _mm_sub_ps(dest_y, agent_ys); 
+                 
+                diffx           = _mm_mul_ps(diffx, diffx);  
+                diffy           = _mm_mul_ps(diffy, diffy); 
 
-				agent_x_array[j] = (float)agents[i + j]->getX();
-				agent_y_array[j] = (float)agents[i + j]->getY();
+                __m128 sum      = _mm_add_ps(diffx, diffy);  
+                __m128 length   = _mm_sqrt_ps(sum); // Euclidean distance
 
-				agents[i+j]->destInit();
+                // Prevent division by zero
+                __m128 epsilon  = _mm_set1_ps(1e-6f);
+                length          = _mm_add_ps(length, epsilon);
+                
+                // Check if agent has reached it's destination 
+        	    __m128 agentReachedDestination = _mm_cmplt_ps(length, radius); // 0 = not reached, 1 = reached
+                
+        	    alignas(16) int results[4];
+        	    _mm_store_ps(reinterpret_cast<float*>(results), agentReachedDestination);
+                
+    	        // Update destination this is still done sequentially
+                for (int j = 0; j < 4; j++) {
 
-				dest_x_array[j] = (float)agents[i + j]->getDestX();
-				dest_y_array[j] = (float)agents[i + j]->getDestY();
-				printf("OG dest X value %dOG dest Y value %d \n", (int)agents[i + j]->getDestX(), (int)agents[i + j]->getDestY());
-				radius_array[j] = (float)agents[i + j]->getRadius();
-			
-        	}
-        
-        	// Load data into SIMD registers
-        	__m128 agent_xs = _mm_load_ps(agent_x_array);
-    		__m128 agent_ys = _mm_load_ps(agent_y_array);
-    		__m128 dest_x = _mm_load_ps(dest_x_array);
-    		__m128 dest_y = _mm_load_ps(dest_y_array);
-    		__m128 radius = _mm_load_ps(radius_array);
+                    if (results[j] != 0) { 
+                        
+                        if (i + j < agents.size()){
+                            
+                            agents[i+j]->updateDestinationList();
+                            agents[i+j]->destInit();
+                            xDestPos[i+j] = (float)agents[i + j]->getDestX();     
+                            yDestPos[i+j] = (float)agents[i + j]->getDestY();
+                            destR[i+j]    = (float)agents[i + j]->getRadius();
+                        }  
+                    } 
+                }
 
-        	//get next destination function med simd
-       		__m128 diffx = _mm_sub_ps(dest_x, agent_xs); 
-        	__m128 diffy = _mm_sub_ps(dest_y, agent_ys); 
+                // Compute next desired position function with simd
+                diffx = _mm_sub_ps(dest_x, agent_xs); 
+                diffy = _mm_sub_ps(dest_y, agent_ys); 
 
-        	diffx = _mm_mul_ps(diffx, diffx);  
-        	diffy = _mm_mul_ps(diffy, diffy); 
-        	__m128 sum = _mm_add_ps(diffx, diffy);  
-        	__m128 length = _mm_sqrt_ps(sum);  // Euclidean distance
-			// Prevent division by zero
-			__m128 epsilon = _mm_set1_ps(1e-6f);
-			length = _mm_add_ps(length, epsilon);
+                __m128 xmul = _mm_mul_ps(diffx, diffx);  
+                __m128 ymul = _mm_mul_ps(diffy, diffy); 
+                sum         = _mm_add_ps(xmul, ymul);  
+                length      = _mm_sqrt_ps(sum); 
 
-        	// check if agent has reached it's destination 
-			//puts 0 for not reached one for reached
-        	__m128 agentReachedDestination = _mm_cmplt_ps(length, radius);
+                __m128 diffX_div_len = _mm_div_ps(diffx, length);
+                __m128 diffY_div_len = _mm_div_ps(diffy, length);
 
-        	alignas(16) int results[4];
-        	_mm_store_ps(reinterpret_cast<float*>(results), agentReachedDestination);
+                __m128 add_x_diffx = _mm_add_ps(agent_xs, diffX_div_len); 
+                __m128 add_y_diffy = _mm_add_ps(agent_ys, diffY_div_len);
+                
+                __m128 p5 = _mm_set1_ps(0.5);
 
-			//update destination this is still done sequentially ASK about that 
-        	for (int j = 0; j < 4; j++) {
-            	if (results[j] != 0) { 
-                	if (i + j < agents.size()){
-						agents[i + j]->updateDestinationList();
-					}  
-            	} 
-        	}
+                add_x_diffx= _mm_add_ps(add_x_diffx, p5);
+                add_y_diffy= _mm_add_ps(add_y_diffy, p5);
 
-			for (int j = 0; j < 4 && (i + j) < agents.size()-remainder; ++j) {
-				
-				agents[i+j]->destInit();
-				dest_x_array[j] = (float)agents[i + j]->getDestX();
-				printf("New dest X value %d \n", (int)agents[i + j]->getDestX());
-				dest_y_array[j] = (float)agents[i + j]->getDestY();
-				printf("New dest Y value %d \n", (int)agents[i + j]->getDestY());
-				radius_array[j] = (float)agents[i + j]->getRadius();
-			
-        	}
+                __m128 desiredPosX = _mm_floor_ps(add_x_diffx);
+                __m128 desiredPosY = _mm_floor_ps(add_y_diffy);
 
-			dest_x = _mm_load_ps(dest_x_array);
-    		dest_y = _mm_load_ps(dest_y_array);
-    		radius = _mm_load_ps(radius_array);
-		
+                // Store
+                _mm_store_ps(&xPos[i], desiredPosX);
+                _mm_store_ps(&yPos[i], desiredPosY);
 
-        	// compute next desired position function with simd
-			diffx = _mm_sub_ps(dest_x, agent_xs); 
-        	diffy = _mm_sub_ps(dest_y, agent_ys); 
+            }
+            
+            //
+            // Last Seq. parts
+            //
 
-        	__m128 xmul = _mm_mul_ps(diffx, diffx);  
-        	__m128 ymul = _mm_mul_ps(diffy, diffy); 
-        	sum = _mm_add_ps(xmul, ymul);  
-        	length = _mm_sqrt_ps(sum); 
-
-			__m128 diffX_div_len = _mm_div_ps(diffx, length);
-        	__m128 diffY_div_len = _mm_div_ps(diffy, length);
-
-			__m128 add_x_diffx = _mm_add_ps(agent_xs, diffX_div_len); 
-			__m128 add_y_diffy = _mm_add_ps(agent_ys, diffY_div_len);
-        	
-			__m128 p5 = _mm_set1_ps(0.5);
-
-        	add_x_diffx= _mm_add_ps(add_x_diffx, p5);
-			add_y_diffy= _mm_add_ps(add_y_diffy, p5);
-
-			__m128 desiredPosX = _mm_floor_ps(add_x_diffx);
-			__m128 desiredPosY = _mm_floor_ps(add_y_diffy);
-
-        	__m128i intPosX = _mm_cvtps_epi32(desiredPosX);
-    		__m128i intPosY = _mm_cvtps_epi32(desiredPosY);
-        	// Store the rounded values into arrays
-        	alignas(16) int posX_values[4], posY_values[4];
-    		_mm_store_si128(reinterpret_cast<__m128i*>(posX_values), intPosX);
-    		_mm_store_si128(reinterpret_cast<__m128i*>(posY_values), intPosY);
-
-        	// Update agent desired positions (still sequentially)
-        	for (int j = 0; j < 4; j++) {
-				if (i + j < agents.size()) {
-					agents[i + j]->changeDesiredDestination(posX_values[j], posY_values[j]);
-					printf("new X value %d \n", posX_values[j]);
-					printf("new Y value%d \n", posY_values[j]);
-					agents[i + j]->setX(posX_values[j]);
-					agents[i + j]->setY(posY_values[j]);
-				}
-			
-        	}
-
-		
-    }
-
-	for(int i = agents.size()-remainder; i < agents.size(); i ++)
-	{
-		updateAgentPosition(agents[i]);
-	}
-
-
-		}
-		break;
+            // Copy updated positions back to agents
+            for (size_t j = 0; j < i; j++) {
+                
+                agents[j]->setX(xPos[j]);
+                agents[j]->setY(yPos[j]);
+            }
+            
+            // Handle the remaining agents
+            for (; i < numAgents; i++) {
+                updateAgentPosition(agents[i]);
+            }
+        }
+        break;
 
     } // end of switch
 }
@@ -323,4 +312,32 @@ Ped::Model::~Model()
 {
 	std::for_each(agents.begin(), agents.end(), [](Ped::Tagent *agent){delete agent;});
 	std::for_each(destinations.begin(), destinations.end(), [](Ped::Twaypoint *destination){delete destination; });
+
+    // A2
+
+    if (xPos) {
+        //std::cout << "Freeing xPos in destructor: " << (void*)xPos << std::endl;
+        free(xPos);
+        xPos = nullptr;
+    }
+    if (yPos) {
+        //std::cout << "Freeing yPos in destructor: " << (void*)yPos << std::endl;
+        free(yPos);
+        yPos = nullptr;
+    }
+    if (xDestPos) {
+        //std::cout << "Freeing xDestPos in destructor: " << (void*)xDestPos << std::endl;
+        free(xDestPos);
+        xDestPos = nullptr;
+    }
+    if (yDestPos) {
+        //std::cout << "Freeing yDestPos in destructor: " << (void*)yDestPos << std::endl;
+        free(yDestPos);
+        yDestPos = nullptr;
+    }
+    if (destR) {
+        //std::cout << "Freeing destR in destructor: " << (void*)destR << std::endl;
+        free(destR);
+        destR = nullptr;
+    }
 }

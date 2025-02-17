@@ -12,6 +12,36 @@
 #include <stdlib.h>
 #include <cstdio>
 
+///////// A2
+
+float Ped::Tagent::getDestX() { 
+	return destination->getx(); 
+}
+
+float Ped::Tagent::getDestY() { 
+	return destination->gety(); 
+}
+float Ped::Tagent::getRadius() { 
+	return destination->getr(); 
+}
+
+void Ped::Tagent::destInit() { 
+	destination = waypoints.front(); 
+}
+
+void Ped::Tagent::updateDestinationList() {
+    waypoints.pop_front();
+	waypoints.push_back(destination);
+	destination = waypoints.front();
+} 
+
+void Ped::Tagent::changeDesiredDestination(int desiredx, int desiredy) {
+	desiredPositionX = desiredx; 
+	desiredPositionY = desiredy; 
+} 
+
+///////// A2
+
 Ped::Tagent::Tagent(int posX, int posY) {
 	Ped::Tagent::init(posX, posY);
 }
@@ -36,39 +66,17 @@ void Ped::Tagent::computeNextDesiredPosition() {
 		return;
 	}
 
-	printf("destination: x %d y %d\n", destination->getx(), destination->gety());
-
 	double diffX = destination->getx() - x;
 	double diffY = destination->gety() - y;
 	double len = sqrt(diffX * diffX + diffY * diffY);
 	desiredPositionX = (int)round(x + diffX / len);
 	desiredPositionY = (int)round(y + diffY / len);
-	printf("desired position x %d y %d \n", (int)desiredPositionX, (int)desiredPositionY);
-
 }
 
 void Ped::Tagent::addWaypoint(Twaypoint* wp) {
 	waypoints.push_back(wp);
 }
 
-void Ped::Tagent::updateDestinationList() {
-    waypoints.pop_front();
-	waypoints.push_back(destination);
-	destination = waypoints.front();
-}
-
-int Ped::Tagent::getDestX() { return destination->getx(); }
-int Ped::Tagent::getDestY() { return destination->gety(); }
-int Ped::Tagent::getRadius() { return destination->getr(); }
-
-void Ped::Tagent::destInit() { destination = waypoints.front(); }
-
-
-
-void Ped::Tagent::changeDesiredDestination(int desiredx, int desiredy){
-	desiredPositionX = desiredx; 
-	desiredPositionY = desiredy; 
-}
 
 Ped::Twaypoint* Ped::Tagent::getNextDestination() {
 	Ped::Twaypoint* nextDestination = NULL;
@@ -76,8 +84,6 @@ Ped::Twaypoint* Ped::Tagent::getNextDestination() {
 
 	if (destination != NULL) {
 		// compute if agent reached its current destination
-		printf("destinations is not null");
-		printf("first destination x: %d y: %d\n", destination->getx(), destination->gety());
 		double diffX = destination->getx() - x;
 		double diffY = destination->gety() - y;
 		double length = sqrt(diffX * diffX + diffY * diffY);
@@ -87,7 +93,6 @@ Ped::Twaypoint* Ped::Tagent::getNextDestination() {
 	if ((agentReachedDestination || destination == NULL) && !waypoints.empty()) {
 		// Case 1: agent has reached destination (or has no current destination);
 		// get next destination if available
-		printf("the destination or agent reached is null");
 		waypoints.push_back(destination);
 		nextDestination = waypoints.front();
 		waypoints.pop_front();
@@ -98,8 +103,6 @@ Ped::Twaypoint* Ped::Tagent::getNextDestination() {
 		// current destination
 		nextDestination = destination;
 	}
-
-	
 
 	return nextDestination;
 }

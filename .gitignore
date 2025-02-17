@@ -40,3 +40,22 @@
 
 # binary file
 demo/demo
+
+
+# Ignore Python virtual environment
+.venv/
+venv/
+
+# Ignore VS Code settings
+.vscode/
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore logs and environment files
+*.log
+.env
+.env.local

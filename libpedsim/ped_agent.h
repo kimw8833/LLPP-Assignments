@@ -27,6 +27,18 @@ namespace Ped {
 
 	class Tagent {
 	public:
+
+		// A2 simd addition
+
+		float getDestX(); 
+		float getDestY(); 
+		float getRadius(); 
+		void destInit();
+		void updateDestinationList(); 
+		void changeDesiredDestination(int desiredx, int desiredy);
+		
+		// A2 simd addition
+
 		Tagent(int posX, int posY);
 		Tagent(double posX, double posY);
 
@@ -38,10 +50,6 @@ namespace Ped {
 		void setX(int newX) { x = newX; }
 		void setY(int newY) { y = newY; }
 
-		void setDestX (int newDestX) {destX = newDestX;}
-		void setDestY (int newDestY) {destY = newDestY;}
-		void setradius (int newradius) {radius = newradius;}
-
 		// Update the position according to get closer
 		// to the current destination
 		void computeNextDesiredPosition();
@@ -52,17 +60,6 @@ namespace Ped {
 
 		// Adds a new waypoint to reach for this agent
 		void addWaypoint(Twaypoint* wp);
-
-		//simd addition
-		void updateDestinationList(); 
-
-		void destInit();
-
-		void changeDesiredDestination(int desiredx, int desiredy); 
-
-		int getDestX(); 
-		int getDestY(); 
-		int getRadius(); 
 
 	private:
 		Tagent() {};
@@ -80,10 +77,6 @@ namespace Ped {
 
 		// The last destination
 		Twaypoint* lastDestination;
-
-		int destX;
-		int destY;
-		int radius; 
 
 		// The queue of all destinations that this agent still has to visit
 		deque<Twaypoint*> waypoints;

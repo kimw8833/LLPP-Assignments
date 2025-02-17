@@ -28,6 +28,18 @@ namespace Ped{
 	{
 	public:
 
+		// A2
+
+		float* xPos			= nullptr;  // Stores X positions
+		float* yPos 		= nullptr;  // Stores Y positions
+		size_t numAgents 	= 0;   		// Number of agents
+
+		float* xDestPos 	= nullptr;  // Stores X positions of waypoints
+    	float* yDestPos 	= nullptr;  // Stores Y positions of waypoints
+		float* destR		= nullptr;
+		
+		// A2
+
 		// Sets everything up
 		void setup(std::vector<Tagent*> agentsInScenario, std::vector<Twaypoint*> destinationsInScenario,IMPLEMENTATION implementation);
 		
