@@ -117,9 +117,9 @@ void Ped::Model::tick()
         { // Multi-threaded update using C++ threads
             std::vector<std::thread> threads;
 
-            for (int i = 0; i < 8; ++i) {
+            for (int i = 0; i < 4; ++i) {
                 threads.emplace_back([&, i]() {
-                    for (int j = i; j < agents.size(); j += 8) {
+                    for (int j = i; j < agents.size(); j += 4) {
                         updateAgentPosition(agents[j]);
                     }
                 });
