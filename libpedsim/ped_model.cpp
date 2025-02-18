@@ -168,6 +168,7 @@ void Ped::Model::tick()
         	    _mm_store_ps(reinterpret_cast<float*>(results), agentReachedDestination);
                 
     	        // Update destination this is still done sequentially
+                //#pragma omp simd
                 for (int j = 0; j < 4; j++) {
 
                     if (results[j] != 0) { 
@@ -175,10 +176,10 @@ void Ped::Model::tick()
                         if (i + j < agents.size()){
                             
                             agents[i+j]->updateDestinationList();
-                            agents[i+j]->destInit();
-                            xDestPos[i+j] = (float)agents[i + j]->getDestX();     
-                            yDestPos[i+j] = (float)agents[i + j]->getDestY();
-                            destR[i+j]    = (float)agents[i + j]->getRadius();
+                            // agents[i+j]->destInit();
+                            // xDestPos[i+j] = (float)agents[i + j]->getDestX();     
+                            // yDestPos[i+j] = (float)agents[i + j]->getDestY();
+                            // destR[i+j]    = (float)agents[i + j]->getRadius();
                         }  
                     } 
                 }
@@ -217,6 +218,7 @@ void Ped::Model::tick()
             //
 
             // Copy updated positions back to agents
+            //#pragma omp simd
             for (size_t j = 0; j < i; j++) {
                 
                 agents[j]->setX(xPos[j]);
@@ -224,6 +226,7 @@ void Ped::Model::tick()
             }
             
             // Handle the remaining agents
+            
             for (; i < numAgents; i++) {
                 updateAgentPosition(agents[i]);
             }
