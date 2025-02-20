@@ -251,39 +251,38 @@ void Ped::Model::move(Ped::Tagent *agent){
     int region_size = total_x_values/total_regions;
 
     int region; 
-    for (int i = region_size; i < total_x_values; i += region_size)
+    /*for (int i = region_size; i < total_x_values; i += region_size)
     {
         for(int j = 1; j < total_regions; j++ )
         {
-            //printf("i: %d \n", i);
-            if (i == 38)
+            printf("i: %d \n", i);
+            printf("desired x %d",agent->getDesiredX())
+            if (agent->getDesiredX() < i)
             {
-                region = 1;
-                //printf(" region %d\n",j);
-                break; 
-            }
-            if (i == 76)
-            {
-                region = 2;
-                //printf(" region 2");
-                break; 
-            }
-            if (i == 114)
-            {
-                region = 3;
-                //printf(" region 3");
-                break; 
-            }
-            if (i == 152)
-            {
-                region = 4;
-                //printf(" region 4");
+                region = j;
+                printf(" region %d\n",j);
                 break; 
             }
         }
 
+    }*/
+    if(agent->getDesiredX() < 38)
+    {
+        region = 1;
+    }
+    if(38 < agent->getDesiredX() < 76)
+    {
+        region = 2;
     }
 
+    if( 76< agent->getDesiredX() < 114)
+    {
+        region = 3;
+    }
+    if(114 < agent->getDesiredX() < 152)
+    {
+        region = 4;
+    }
     set<const Ped::Tagent *> neighbors = getNeighbors(agent->getX(), agent->getY(), region_size, region); 
 
     std::vector<std::pair<int, int> > takenPositions;
