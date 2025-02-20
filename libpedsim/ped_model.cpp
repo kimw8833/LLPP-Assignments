@@ -85,6 +85,7 @@ void Ped::Model::updateAgentPosition(Ped::Tagent* agent) {
     if(agent) {
         agent->computeNextDesiredPosition();
         move(agent);
+        //printf("x: %d y: %d \n", agent->getDesiredX(), agent->getDesiredY());
         //agent->setX(agent->getDesiredX());
         //agent->setY(agent->getDesiredY());
     }
@@ -244,45 +245,25 @@ void Ped::Model::tick()
 
 void Ped::Model::move(Ped::Tagent *agent){
 
-    int total_regions = 4;
-    int total_x_values = 154; 
+    int total_regions = 32;
+    int total_x_values = 200; 
+    int totalt_y_values = 100;
 
 
     int region_size = total_x_values/total_regions;
 
-    int region; 
-    /*for (int i = region_size; i < total_x_values; i += region_size)
+    int region = 0; 
+    for (int j = 1; j <= total_regions; j++)  // Ensure j starts from 1 to total_regions
     {
-        for(int j = 1; j < total_regions; j++ )
+        if (region_size * (j - 1) <= agent->getDesiredX() && agent->getDesiredX() < region_size * j)
         {
-            printf("i: %d \n", i);
-            printf("desired x %d",agent->getDesiredX())
-            if (agent->getDesiredX() < i)
-            {
-                region = j;
-                printf(" region %d\n",j);
-                break; 
-            }
+            //printf("desired x: %d\n", agent->getDesiredX());
+            region = j;
+            //printf("Region assigned: %d\n", j);
+            break;
         }
-
-    }*/
-    if(agent->getDesiredX() < 38)
-    {
-        region = 1;
     }
-    if(38 < agent->getDesiredX() < 76)
-    {
-        region = 2;
-    }
-
-    if( 76< agent->getDesiredX() < 114)
-    {
-        region = 3;
-    }
-    if(114 < agent->getDesiredX() < 152)
-    {
-        region = 4;
-    }
+    
     set<const Ped::Tagent *> neighbors = getNeighbors(agent->getX(), agent->getY(), region_size, region); 
 
     std::vector<std::pair<int, int> > takenPositions;
