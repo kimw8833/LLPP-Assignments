@@ -28,8 +28,16 @@ namespace Ped{
 	{
 	public:
 
-		// A2
+		///// A3
 
+		void assignAgentsToRegions();
+		void move(Ped::Tagent *agent);
+		int  getRegionId(int x, int y) const;
+		void updateAgentPosition(Ped::Tagent* agent);			
+
+		///// A3
+		
+		///// A2
 		float* xPos			= nullptr;  // Stores X positions
 		float* yPos 		= nullptr;  // Stores Y positions
 		size_t numAgents 	= 0;   		// Number of agents
@@ -37,8 +45,7 @@ namespace Ped{
 		float* xDestPos 	= nullptr;  // Stores X positions of waypoints
     	float* yDestPos 	= nullptr;  // Stores Y positions of waypoints
 		float* destR		= nullptr;
-		
-		// A2
+		///// A2
 
 		// Sets everything up
 		void setup(std::vector<Tagent*> agentsInScenario, std::vector<Twaypoint*> destinationsInScenario,IMPLEMENTATION implementation);
@@ -74,7 +81,7 @@ namespace Ped{
 		std::vector<Twaypoint*> destinations;
 
 		// Moves an agent towards its next position
-		void move(Ped::Tagent *agent);
+		//void move(Ped::Tagent *agent); // A3 move to public
 
 		////////////
 		/// Everything below here won't be relevant until Assignment 3
