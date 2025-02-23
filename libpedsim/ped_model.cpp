@@ -14,11 +14,27 @@
 #include <algorithm>
 #include <omp.h>
 #include <thread>
+#include <mutex>
 #include <immintrin.h>  // For SIMD intrinsics (AVX, SSE)
+#include <unordered_map>
+#include <shared_mutex>
+#include <queue>
+#include <memory>
 
 #ifndef NOCDUA
 #include "cuda_testkernel.h"
 #endif
+
+#define total_regions 16
+#define total_x_values 160
+
+//std::mutex regionLocks[total_regions];
+std::map<int, std::shared_ptr<std::mutex>> regionLocks;
+std::mutex regionLocksMutex;
+std::unordered_map<int, std::set<Ped::Tagent*>> regions;
+
+
+std::shared_mutex regionsMutex;
 
 void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<Twaypoint*> destinationsInScenario, IMPLEMENTATION implementation)
 {
@@ -37,6 +53,23 @@ void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<T
 
 	// Sets the chosen implemenation. Standard in the given code is SEQ
 	this->implementation = implementation;
+    for (int i = 0; i < total_regions; ++i) 
+    {
+        regions[i] = {};  
+    }
+    regions.clear();
+    int region_size = total_x_values / total_regions;
+    int region = 0; 
+    for (int i = 0; i < agents.size(); i++) {
+        for (int j = 1; j <= total_regions; j++) {
+            if (region_size * (j - 1) <= agents[i]->getX() && agents[i]->getX() < region_size * j) {
+                int region = j;
+                regions[region].insert(agents[i]); 
+                
+                break;
+            }
+        }
+    }
 	
 
 	// Set up heatmap (relevant for Assignment 4)
@@ -117,7 +150,7 @@ void Ped::Model::tick()
 
         case PTHREAD:
         { // Multi-threaded update using C++ threads
-            std::vector<std::thread> threads;
+            /*std::vector<std::thread> threads;
 
             for (int i = 0; i < 4; ++i) {
                 threads.emplace_back([&, i]() {
@@ -129,9 +162,26 @@ void Ped::Model::tick()
 
             for (auto& t : threads) {
                 t.join();
+            }*/
+
+            std::vector<std::thread> region_threads;
+
+            for (auto &[region, agentSet] : regions) {
+                region_threads.emplace_back([=, &agentSet]() {
+                    // Lock the region for reading (shared access)
+                    //std::shared_lock<std::shared_mutex> lock(regionsMutex);
+                    for (Ped::Tagent* agent : agentSet) {
+                        updateAgentPosition(agent);
+                    }
+                });
             }
-        }
-        break;
+
+            for (auto &t : region_threads) {
+                t.join();
+            }
+
+    }
+    break;
 
 //////////////////
 /// Assignment 2
@@ -245,17 +295,13 @@ void Ped::Model::tick()
 
 void Ped::Model::move(Ped::Tagent *agent){
 
-    int total_regions = 32;
-    int total_x_values = 200; 
-    int totalt_y_values = 100;
-
 
     int region_size = total_x_values/total_regions;
 
     int region = 0; 
     for (int j = 1; j <= total_regions; j++)  // Ensure j starts from 1 to total_regions
     {
-        if (region_size * (j - 1) <= agent->getDesiredX() && agent->getDesiredX() < region_size * j)
+        if (region_size * (j - 1) <= agent->getX() && agent->getX() < region_size * j)
         {
             //printf("desired x: %d\n", agent->getDesiredX());
             region = j;
@@ -263,55 +309,108 @@ void Ped::Model::move(Ped::Tagent *agent){
             break;
         }
     }
+
+    int new_region = 0; 
+    for (int j = 1; j <= total_regions; j++)  // Ensure j starts from 1 to total_regions
+    {
+        if (region_size * (j - 1) <= agent->getDesiredX() && agent->getDesiredX() < region_size * j)
+        {
+            //printf("desired x: %d\n", agent->getDesiredX());
+            new_region = j;
+            //printf("Region assigned: %d\n", j);
+            break;
+        }
+    }
+
+
+        set<const Ped::Tagent *> neighbors = getNeighbors(agent->getX(), agent->getY(), region_size, region); 
+
+        std::vector<std::pair<int, int> > takenPositions;
+	    for (std::set<const Ped::Tagent*>::iterator neighborIt = neighbors.begin(); neighborIt != neighbors.end(); ++neighborIt) {
+		    std::pair<int, int> position((*neighborIt)->getX(), (*neighborIt)->getY());
+		    takenPositions.push_back(position);
+	    }
+
+        std::vector<std::pair<int, int> > prioritizedAlternatives;
+	    std::pair<int, int> pDesired(agent->getDesiredX(), agent->getDesiredY());
     
-    set<const Ped::Tagent *> neighbors = getNeighbors(agent->getX(), agent->getY(), region_size, region); 
+	    prioritizedAlternatives.push_back(pDesired);
 
-    std::vector<std::pair<int, int> > takenPositions;
-	for (std::set<const Ped::Tagent*>::iterator neighborIt = neighbors.begin(); neighborIt != neighbors.end(); ++neighborIt) {
-		std::pair<int, int> position((*neighborIt)->getX(), (*neighborIt)->getY());
-		takenPositions.push_back(position);
-	}
-
-    std::vector<std::pair<int, int> > prioritizedAlternatives;
-	std::pair<int, int> pDesired(agent->getDesiredX(), agent->getDesiredY());
-    
-	prioritizedAlternatives.push_back(pDesired);
-
-    int diffX = pDesired.first - agent->getX();
-	int diffY = pDesired.second - agent->getY();
-	std::pair<int, int> p1, p2;
-	if (diffX == 0 || diffY == 0)
-	{
+        int diffX = pDesired.first - agent->getX();
+	    int diffY = pDesired.second - agent->getY();
+	    std::pair<int, int> p1, p2;
+	    if (diffX == 0 || diffY == 0)
+	    {
 		// Agent wants to walk straight to North, South, West or East
-		p1 = std::make_pair(pDesired.first + diffY, pDesired.second + diffX);
-		p2 = std::make_pair(pDesired.first - diffY, pDesired.second - diffX);
-	}
-	else {
+		    p1 = std::make_pair(pDesired.first + diffY, pDesired.second + diffX);
+		    p2 = std::make_pair(pDesired.first - diffY, pDesired.second - diffX);
+	    }
+	    else {
 		// Agent wants to walk diagonally
-		p1 = std::make_pair(pDesired.first, agent->getY());
-		p2 = std::make_pair(agent->getX(), pDesired.second);
-	}
-	prioritizedAlternatives.push_back(p1);
-	prioritizedAlternatives.push_back(p2);
+		    p1 = std::make_pair(pDesired.first, agent->getY());
+		    p2 = std::make_pair(agent->getX(), pDesired.second);
+	    }
+	    prioritizedAlternatives.push_back(p1);
+	    prioritizedAlternatives.push_back(p2);
 
-	// Find the first empty alternative position
-	for (std::vector<pair<int, int> >::iterator it = prioritizedAlternatives.begin(); it != prioritizedAlternatives.end(); ++it) {
+	    // Find the first empty alternative position
+	    for (std::vector<pair<int, int> >::iterator it = prioritizedAlternatives.begin(); it != prioritizedAlternatives.end(); ++it) {
 
-		// If the current position is not yet taken by any neighbor
-		if (std::find(takenPositions.begin(), takenPositions.end(), *it) == takenPositions.end()) {
-
+		    // If the current position is not yet taken by any neighbor
+		    if (std::find(takenPositions.begin(), takenPositions.end(), *it) == takenPositions.end()) {
+                
+               
+                
             //printf("setting position");
-			// Set the agent's position 
-			agent->setX((*it).first);
-			agent->setY((*it).second);
+			// Set the agent's position
+            //std::unique_lock<std::shared_mutex> lock(regionsMutex); 
+            if(region != new_region)
+            {
+                #pragma omp critical
+                {
+                    agent->setX((*it).first);
+			        agent->setY((*it).second);
+                }
+
+            }
+            else {
+                agent->setX((*it).first);
+			    agent->setY((*it).second);
+                
+            }
+            
+			
 
 			break;
-		}
-	}
+		    }
+        }
+
+        if(region != new_region){
+            //std::unique_lock<std::shared_mutex> lock(regionsMutex);
+            #pragma omp critical
+            {
+                regions[region].erase(agent); 
+                regions[new_region].insert(agent);
+
+            }
+                    
+        } 
+}
+
     
+    /*else {
+
+        auto old_it = regions.find(region);
+        if (old_it != regions.end()) {
+            old_it->second.erase(agent); // Erase agent from the set
+        }
+        regions[new_region].insert(agent); 
+
+
+    }*/
     
 
-}
+
 
 set<const Ped::Tagent*> Ped::Model::getNeighbors(int x, int y, int region_size, int region) const {
 

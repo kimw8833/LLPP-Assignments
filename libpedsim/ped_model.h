@@ -14,6 +14,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <memory>
 
 #include "ped_agent.h"
 
@@ -83,6 +84,29 @@ namespace Ped{
 		// Returns the set of neighboring agents for the specified position
 		set<const Ped::Tagent*> getNeighbors(int x, int y, int dist, int region) const;
 		void updateAgentPosition(Ped::Tagent* agent);
+
+		/*std::map<int, std::shared_ptr<std::set<Ped::Tagent*>>> regions;
+
+        void ensure_region(int region) {
+            if (!regions.count(region)) {
+                auto new_region_set = std::make_shared<std::set<Ped::Tagent*>>();
+                std::atomic_store(&regions[region], new_region_set);
+            }
+        }
+
+        void atomic_remove(int region, Ped::Tagent* agent) {
+            auto old_region_set = std::atomic_load(&regions[region]);
+            auto new_region_set = std::make_shared<std::set<Ped::Tagent*>>(*old_region_set);
+            new_region_set->erase(agent);
+            std::atomic_store(&regions[region], new_region_set);
+        }
+
+        void atomic_insert(int region, Ped::Tagent* agent) {
+            auto old_region_set = std::atomic_load(&regions[region]);
+            auto new_region_set = std::make_shared<std::set<Ped::Tagent*>>(*old_region_set);
+            new_region_set->insert(agent);
+            std::atomic_store(&regions[region], new_region_set);
+        }*/
 
 		////////////
 		/// Everything below here won't be relevant until Assignment 4
