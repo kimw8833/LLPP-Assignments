@@ -15,6 +15,7 @@
 #include <map>
 #include <set>
 #include <memory>
+#include <unordered_map>
 
 #include "ped_agent.h"
 
@@ -40,6 +41,8 @@ namespace Ped{
 		float* destR		= nullptr;
 		
 		// A2
+
+		int *regions = nullptr; 
 
 		// Sets everything up
 		void setup(std::vector<Tagent*> agentsInScenario, std::vector<Twaypoint*> destinationsInScenario,IMPLEMENTATION implementation);
@@ -75,7 +78,7 @@ namespace Ped{
 		std::vector<Twaypoint*> destinations;
 
 		// Moves an agent towards its next position
-		void move(Ped::Tagent *agent);
+		void move(Ped::Tagent *agent, int region);
 
 		////////////
 		/// Everything below here won't be relevant until Assignment 3
@@ -84,6 +87,8 @@ namespace Ped{
 		// Returns the set of neighboring agents for the specified position
 		set<const Ped::Tagent*> getNeighbors(int x, int y, int dist, int region) const;
 		void updateAgentPosition(Ped::Tagent* agent);
+		//std::unordered_map<int, Tagent*> regions;
+
 
 		/*std::map<int, std::shared_ptr<std::set<Ped::Tagent*>>> regions;
 

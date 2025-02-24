@@ -29,12 +29,13 @@
 #define total_x_values 160
 
 //std::mutex regionLocks[total_regions];
-std::map<int, std::shared_ptr<std::mutex>> regionLocks;
-std::mutex regionLocksMutex;
-std::unordered_map<int, std::set<Ped::Tagent*>> regions;
+//std::map<int, std::shared_ptr<std::mutex>> regionLocks;
+//std::mutex regionLocksMutex;
+//std::shared_mutex regionsMutex;
 
 
-std::shared_mutex regionsMutex;
+//std::vector<std::tuple<int, std::set<Ped::Tagent*>>> regions;
+
 
 void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<Twaypoint*> destinationsInScenario, IMPLEMENTATION implementation)
 {
@@ -53,13 +54,21 @@ void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<T
 
 	// Sets the chosen implemenation. Standard in the given code is SEQ
 	this->implementation = implementation;
-    for (int i = 0; i < total_regions; ++i) 
+
+    //regions = std::unordered_map<int, Tagent*>(total_regions);
+    /*for (int i = 0; i < total_regions; ++i) 
     {
         regions[i] = {};  
     }
-    regions.clear();
+    regions.clear();*/
+    
     int region_size = total_x_values / total_regions;
-    int region = 0; 
+
+    if(posix_memalign((void**)&regions,      4, agents.size()  * sizeof(int)) != 0 ) {
+                exit(EXIT_FAILURE);
+            }
+    
+    /*int region = 0; 
     for (int i = 0; i < agents.size(); i++) {
         for (int j = 1; j <= total_regions; j++) {
             if (region_size * (j - 1) <= agents[i]->getX() && agents[i]->getX() < region_size * j) {
@@ -69,7 +78,24 @@ void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<T
                 break;
             }
         }
+    }*/
+
+    for (int i = 0; i<agents.size(); i++) {
+        for (int j = 1; j <= total_regions; j++) {
+            if (region_size * (j - 1) <= agents[i]->getX() && agents[i]->getX() < region_size * j) {
+                int region = j;
+                regions[i] = j; 
+                
+                break;
+            }
     }
+}
+
+
+    // Output the regions and their agents
+    /*for (const auto& region : regions) {
+        std::cout << "Region " << std::get<0>(region) << " has " << std::get<1>(region).size() << " agents." << std::endl;
+    }*/
 	
 
 	// Set up heatmap (relevant for Assignment 4)
@@ -117,10 +143,10 @@ void Ped::Model::setup(std::vector<Ped::Tagent*> agentsInScenario, std::vector<T
 void Ped::Model::updateAgentPosition(Ped::Tagent* agent) {
     if(agent) {
         agent->computeNextDesiredPosition();
-        move(agent);
+        //move(agent);
         //printf("x: %d y: %d \n", agent->getDesiredX(), agent->getDesiredY());
-        //agent->setX(agent->getDesiredX());
-        //agent->setY(agent->getDesiredY());
+        agent->setX(agent->getDesiredX());
+        agent->setY(agent->getDesiredY());
     }
 }
 
@@ -166,12 +192,35 @@ void Ped::Model::tick()
 
             std::vector<std::thread> region_threads;
 
-            for (auto &[region, agentSet] : regions) {
+            /*for (auto &[region, agentSet] : regions) {
                 region_threads.emplace_back([=, &agentSet]() {
                     // Lock the region for reading (shared access)
                     //std::shared_lock<std::shared_mutex> lock(regionsMutex);
                     for (Ped::Tagent* agent : agentSet) {
                         updateAgentPosition(agent);
+                    }
+                });
+            }*/
+
+            /*for (auto &regionTuple : regions) {
+                int region = std::get<0>(regionTuple);        // Extract region ID from the tuple
+                std::set<Ped::Tagent*>& agentSet = std::get<1>(regionTuple);  // Extract the agent set from the tuple
+                
+                region_threads.emplace_back([=, &agentSet]() {
+                    // Lock the region for reading (shared access)
+                    //std::shared_lock<std::shared_mutex> lock(regionsMutex);
+                    for (Ped::Tagent* agent : agentSet) {
+                        updateAgentPosition(agent);
+                    }
+                });
+            }*/
+
+            for (int i = 0; i < total_regions; ++i) {
+                region_threads.emplace_back([&, i]() {
+                    for (int j = i; j < agents.size(); j += 4) {
+                        //updateAgentPosition(agents[j]);
+                        agents[j]->computeNextDesiredPosition();
+                        move(agents[j], j);
                     }
                 });
             }
@@ -293,7 +342,7 @@ void Ped::Model::tick()
 /// Don't use this for Assignment 1!
 ///////////////////////////////////////////////
 
-void Ped::Model::move(Ped::Tagent *agent){
+void Ped::Model::move(Ped::Tagent *agent, int index){
 
 
     int region_size = total_x_values/total_regions;
@@ -389,8 +438,15 @@ void Ped::Model::move(Ped::Tagent *agent){
             //std::unique_lock<std::shared_mutex> lock(regionsMutex);
             #pragma omp critical
             {
-                regions[region].erase(agent); 
-                regions[new_region].insert(agent);
+                regions[index] = new_region; 
+                /*int old_region = region; 
+
+                for (auto& region : regions) {
+                    if (std::get<0>(region) == old_region && std::get<1>(region)->getX() == agent->getX() && std::get<1>(region)->getY() == agent->getY() ) {
+                        region = std::make_tuple(new_region, std::get<1>(region));
+                        break;
+                    }
+                }*/
 
             }
                     
